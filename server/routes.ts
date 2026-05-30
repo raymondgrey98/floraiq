@@ -67,13 +67,34 @@ router.post('/identify', upload.single('image'), async (req: Request, res: Respo
 
     const context = req.body.context || '';
 
-    // Identify plant using AirLLM
     const result = await aiService.identifyPlant({
       imageBuffer: req.file.buffer,
       language,
       location,
       context,
     });
+
+    // Enrich with GBIF taxonomy (free, no key)
+    if (result.scientificName && result.scientificName !== 'Unknown species') {
+      try {
+        const gbifRes = await fetch(
+          `https://api.gbif.org/v1/species/match?name=${encodeURIComponent(result.scientificName)}`,
+          { signal: AbortSignal.timeout(4000) }
+        );
+        if (gbifRes.ok) {
+          const g = await gbifRes.json() as any;
+          if (g.matchType !== 'NONE') {
+            (result as any).gbif = {
+              usageKey: g.usageKey,
+              kingdom: g.kingdom,
+              family: g.family,
+              confidence: g.confidence,
+              status: g.status,
+            };
+          }
+        }
+      } catch { /* GBIF optional */ }
+    }
 
     res.json(result);
   } catch (error) {
@@ -309,6 +330,71 @@ router.post('/health', (req: Request, res: Response) => {
     camera: 'ready',
     timestamp: new Date().toISOString(),
   });
+});
+
+/**
+ * POST /api/identify/inat
+ * Secondary identification via iNaturalist Computer Vision (free, no key)
+ */
+router.post('/identify/inat', upload.single('image'), async (req: Request, res: Response) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No image provided' });
+
+    const formData = new FormData();
+    const blob = new Blob([req.file.buffer], { type: req.file.mimetype });
+    formData.append('image', blob, req.file.originalname || 'image.jpg');
+
+    const lat = req.body.lat;
+    const lng = req.body.lng;
+    const url = new URL('https://api.inaturalist.org/v1/computervision/score_image');
+    if (lat && lng) { url.searchParams.set('lat', lat); url.searchParams.set('lng', lng); }
+
+    const response = await fetch(url.toString(), {
+      method: 'POST',
+      body: formData,
+      signal: AbortSignal.timeout(15000),
+    });
+
+    if (!response.ok) throw new Error(`iNaturalist CV error ${response.status}`);
+    const data = await response.json() as any;
+
+    const results = (data.results || []).slice(0, 5).map((r: any) => ({
+      score: r.combined_score || r.vision_score,
+      taxon: {
+        id: r.taxon?.id,
+        name: r.taxon?.name,
+        commonName: r.taxon?.preferred_common_name,
+        rank: r.taxon?.rank,
+        iconicTaxon: r.taxon?.iconic_taxon_name,
+        photoUrl: r.taxon?.default_photo?.square_url,
+        wikipediaUrl: r.taxon?.wikipedia_url,
+        observationsCount: r.taxon?.observations_count,
+      },
+    }));
+
+    res.json({ results, source: 'iNaturalist Computer Vision' });
+  } catch (error: any) {
+    console.error('[iNat CV]', error.message);
+    res.status(500).json({ error: 'iNaturalist CV unavailable', results: [] });
+  }
+});
+
+/**
+ * GET /api/species/forage
+ * Edible & useful wild plants from GBIF (free, no key)
+ */
+router.get('/species/forage', async (req: Request, res: Response) => {
+  try {
+    const { lat, lng, radius = '50' } = req.query as any;
+    let url = 'https://api.gbif.org/v1/occurrence/search?hasCoordinate=true&hasGeospatialIssue=false&kingdom=Plantae&limit=200&occurrenceStatus=PRESENT';
+    if (lat && lng) url += `&decimalLatitude=${parseFloat(lat) - 2},${parseFloat(lat) + 2}&decimalLongitude=${parseFloat(lng) - 2},${parseFloat(lng) + 2}`;
+    const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!r.ok) throw new Error('GBIF error');
+    const data = await r.json() as any;
+    res.json({ results: data.results || [], count: data.count });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message, results: [] });
+  }
 });
 
 /**

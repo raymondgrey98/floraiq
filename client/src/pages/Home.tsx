@@ -60,10 +60,17 @@ export default function Home() {
     },
     {
       icon: Waves,
-      title: "Wild Food Guide",
-      description: "Edible plants & cooking methods",
+      title: "Forage Map",
+      description: "Find edible & medicinal plants near you",
       color: "from-teal-500 to-green-600",
-      href: "/survival",
+      href: "/forage",
+    },
+    {
+      icon: BarChart3,
+      title: "Farm Finance",
+      description: "Track income, expenses & profit in RM",
+      color: "from-amber-500 to-yellow-600",
+      href: "/finance",
     },
   ];
 
