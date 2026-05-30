@@ -16,6 +16,7 @@ import History from "./pages/History";
 import Profile from "./pages/Profile";
 import AdminDashboard from "./pages/AdminDashboard";
 import Chatbot from "./components/Chatbot";
+import BottomNav from "./components/BottomNav";
 import ScanResults from "./pages/ScanResults";
 import FarmFinance from "./pages/FarmFinance";
 import ForageMap from "./pages/ForageMap";
@@ -59,6 +60,7 @@ function App() {
           <Toaster />
           <Router />
           <Chatbot />
+          <BottomNav />
         </TooltipProvider>
       </ThemeProvider>
     </ErrorBoundary>
