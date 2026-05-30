@@ -345,18 +345,19 @@ function CareScheduleTab() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState("");
   const [error, setError] = useState("");
+  const [ofData, setOfData] = useState<any>(null);
 
   const quickPlants = ["Tomato","Chili","Padi / Rice","Durian","Banana","Kangkung","Lettuce","Cucumber","Papaya","Coconut","Rambutan","Pineapple","Sweet Potato","Tapioca"];
 
   async function generate(name: string) {
-    setLoading(true); setError(""); setResult(""); setPlant(name);
+    setLoading(true); setError(""); setResult(""); setPlant(name); setOfData(null);
     try {
       const langName = LANGUAGES.find(l => l.code === lang)?.label || "English";
-      const reply = await askAI(`You are an expert tropical plant care advisor (Malaysia/Sarawak context).
+      // AI care schedule + OpenFarm data in parallel
+      const [reply, ofRes] = await Promise.all([
+        askAI(`You are an expert tropical plant care advisor (Malaysia/Sarawak context).
 IMPORTANT: Respond in ${langName}. All prices in RM (MYR).
-
 Create a detailed weekly care schedule for: ${name}
-
 🌊 Watering: frequency, amount, signs of over/under watering
 ☀️ Sunlight: hours needed, shade tolerance
 🧪 Fertilizer: type, frequency, NPK ratio, organic options, price in RM
@@ -364,9 +365,11 @@ Create a detailed weekly care schedule for: ${name}
 🐛 Pest & Disease: common pests in Malaysia, prevention, treatment cost in RM
 🌡️ Temperature & Humidity: ideal for Malaysia climate
 📅 Growth Timeline: weeks to harvest
-💡 Pro Tips: 5 expert tips for tropical Malaysia
-🛒 Where to buy in Malaysia: Shopee/Lazada links, nursery recommendations`);
+💡 Pro Tips: 5 expert tips for tropical Malaysia`),
+        fetch(`https://openfarm.cc/api/v1/crops/?q=${encodeURIComponent(name)}`).then(r => r.ok ? r.json() : null).catch(() => null),
+      ]);
       setResult(reply);
+      if (ofRes?.data?.[0]) setOfData(ofRes.data[0].attributes);
     } catch (e: any) { setError(e.message); }
     finally { setLoading(false); }
   }
@@ -392,7 +395,26 @@ Create a detailed weekly care schedule for: ${name}
         </div>
       </div>
       {error && <ErrorBox msg={error} />}
-      {result && <ResultBox title={`Care Schedule — ${plant}`} text={result} />}
+
+      {/* OpenFarm data (real database) */}
+      {ofData && (
+        <div className="glass rounded-xl p-5 border border-blue-500/20">
+          <p className="text-xs font-bold text-blue-400 uppercase tracking-wide mb-3">OpenFarm Database — {ofData.name}</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
+            {ofData.sun_requirements && <div className="glass rounded-lg p-3 border border-border/50"><p className="text-xs text-muted-foreground mb-1">☀️ Sunlight</p><p className="text-xs font-medium">{ofData.sun_requirements}</p></div>}
+            {ofData.sowing_method && <div className="glass rounded-lg p-3 border border-border/50"><p className="text-xs text-muted-foreground mb-1">🌱 Sowing</p><p className="text-xs font-medium">{ofData.sowing_method}</p></div>}
+            {ofData.spread && <div className="glass rounded-lg p-3 border border-border/50"><p className="text-xs text-muted-foreground mb-1">📐 Spread</p><p className="text-xs font-medium">{ofData.spread} cm</p></div>}
+            {ofData.row_spacing && <div className="glass rounded-lg p-3 border border-border/50"><p className="text-xs text-muted-foreground mb-1">↔️ Row Spacing</p><p className="text-xs font-medium">{ofData.row_spacing} cm</p></div>}
+            {ofData.height && <div className="glass rounded-lg p-3 border border-border/50"><p className="text-xs text-muted-foreground mb-1">📏 Height</p><p className="text-xs font-medium">{ofData.height} cm</p></div>}
+            {ofData.guides_count !== undefined && <div className="glass rounded-lg p-3 border border-border/50"><p className="text-xs text-muted-foreground mb-1">📋 Guides</p><p className="text-xs font-medium">{ofData.guides_count} available</p></div>}
+          </div>
+          {ofData.description && <p className="text-xs text-muted-foreground leading-relaxed mb-2">{ofData.description.slice(0, 300)}</p>}
+          <a href={`https://openfarm.cc/en/crops/${plant.toLowerCase().replace(/\s+/g, "-")}`} target="_blank" rel="noopener noreferrer"
+            className="text-xs text-blue-400 hover:text-blue-300">View full guide on OpenFarm →</a>
+        </div>
+      )}
+
+      {result && <ResultBox title={`AI Care Schedule — ${plant}`} text={result} />}
     </div>
   );
 }
