@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
-import { Leaf, Waves, AlertTriangle, Compass, Zap, Globe, BookOpen, BarChart3 } from "lucide-react";
+import { Leaf, Waves, AlertTriangle, Compass, Zap, Globe, BookOpen, BarChart3, Droplets } from "lucide-react";
 
 /**
  * FloraIQ Home Page
@@ -71,6 +71,13 @@ export default function Home() {
       description: "Track income, expenses & profit in RM",
       color: "from-amber-500 to-yellow-600",
       href: "/finance",
+    },
+    {
+      icon: Droplets,
+      title: "Water Tracker",
+      description: "Never forget to water your plants again",
+      color: "from-blue-500 to-cyan-600",
+      href: "/water",
     },
   ];
 
