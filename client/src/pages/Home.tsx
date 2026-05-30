@@ -56,7 +56,7 @@ export default function Home() {
       title: "Plant Journal",
       description: "Track your discoveries & scans",
       color: "from-rose-500 to-red-600",
-      href: "/history",
+      href: "/journal",
     },
     {
       icon: Waves,
