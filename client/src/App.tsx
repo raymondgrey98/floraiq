@@ -36,6 +36,17 @@ import IrrigationCalc from "./pages/IrrigationCalc";
 import SoilGuide from "./pages/SoilGuide";
 import CompostGuide from "./pages/CompostGuide";
 import PropagationGuide from "./pages/PropagationGuide";
+import EdiblePlants from "./pages/EdiblePlants";
+import MedicinalPlants from "./pages/MedicinalPlants";
+import MushroomGuide from "./pages/MushroomGuide";
+import NaturalFirstAid from "./pages/NaturalFirstAid";
+import OrganicPest from "./pages/OrganicPest";
+import WildTea from "./pages/WildTea";
+import CropRotation from "./pages/CropRotation";
+import GrowthLog from "./pages/GrowthLog";
+import ButterflyGarden from "./pages/ButterflyGarden";
+import PruningGuide from "./pages/PruningGuide";
+import HarvestCalc from "./pages/HarvestCalc";
 
 function Router() {
   return (
@@ -70,6 +81,17 @@ function Router() {
       <Route path={"/soil"} component={SoilGuide} />
       <Route path={"/compost"} component={CompostGuide} />
       <Route path={"/propagation"} component={PropagationGuide} />
+      <Route path={"/edible"} component={EdiblePlants} />
+      <Route path={"/medicinal"} component={MedicinalPlants} />
+      <Route path={"/mushroom"} component={MushroomGuide} />
+      <Route path={"/firstaid"} component={NaturalFirstAid} />
+      <Route path={"/organic"} component={OrganicPest} />
+      <Route path={"/tea"} component={WildTea} />
+      <Route path={"/rotation"} component={CropRotation} />
+      <Route path={"/growth"} component={GrowthLog} />
+      <Route path={"/butterfly"} component={ButterflyGarden} />
+      <Route path={"/pruning"} component={PruningGuide} />
+      <Route path={"/harvest"} component={HarvestCalc} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />
