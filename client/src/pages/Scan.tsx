@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
-import { useState, useRef } from "react";
-import { Leaf, Bug, Bird, Waves, AlertTriangle, Upload, Camera, X, Sprout, Snail, Loader2 } from "lucide-react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { Leaf, Bug, Bird, Waves, AlertTriangle, Upload, Camera, X, Sprout, Snail, Loader2, Video, VideoOff } from "lucide-react";
 import { Link, useLocation } from "wouter";
 
 const MODES = [
@@ -20,8 +20,53 @@ export default function Scan() {
   const [file, setFile]  = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [liveMode, setLiveMode] = useState(false);
+  const [streamError, setStreamError] = useState("");
+  const inputRef  = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
+  const videoRef  = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  const stopStream = useCallback(() => {
+    streamRef.current?.getTracks().forEach(t => t.stop());
+    streamRef.current = null;
+  }, []);
+
+  useEffect(() => () => stopStream(), [stopStream]);
+
+  async function startLive() {
+    setStreamError("");
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
+      });
+      streamRef.current = stream;
+      if (videoRef.current) videoRef.current.srcObject = stream;
+      setLiveMode(true);
+    } catch {
+      setStreamError("Camera access denied. Please allow camera permission.");
+    }
+  }
+
+  function stopLive() {
+    stopStream();
+    setLiveMode(false);
+  }
+
+  function captureFrame() {
+    if (!videoRef.current) return;
+    const canvas = document.createElement("canvas");
+    canvas.width  = videoRef.current.videoWidth  || 1280;
+    canvas.height = videoRef.current.videoHeight || 720;
+    canvas.getContext("2d")!.drawImage(videoRef.current, 0, 0);
+    canvas.toBlob(blob => {
+      if (!blob) return;
+      const f = new File([blob], "capture.jpg", { type: "image/jpeg" });
+      setFile(f);
+      setPreview(canvas.toDataURL("image/jpeg", 0.85));
+      stopLive();
+    }, "image/jpeg", 0.85);
+  }
 
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -139,19 +184,49 @@ export default function Scan() {
 
         {/* Upload zone */}
         <div className="max-w-2xl mx-auto mb-8">
-          {!preview ? (
+          {liveMode ? (
+            /* ── Live camera viewfinder ── */
+            <div className="glass rounded-xl border border-emerald-500/40 overflow-hidden">
+              <div className="relative bg-black">
+                <video ref={videoRef} autoPlay playsInline muted
+                  className="w-full max-h-80 object-cover" />
+                {/* Scan reticle overlay */}
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="w-48 h-48 border-2 border-emerald-400/60 rounded-xl" />
+                </div>
+                <div className="absolute top-3 left-3 bg-black/60 text-emerald-400 text-xs px-2 py-1 rounded-full flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />LIVE
+                </div>
+              </div>
+              <div className="flex gap-3 p-4">
+                <Button type="button" onClick={captureFrame}
+                  className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white h-12 font-semibold">
+                  <Camera className="w-5 h-5 mr-2" />Capture & Identify
+                </Button>
+                <Button type="button" variant="outline" onClick={stopLive}
+                  className="border-border/50 text-muted-foreground">
+                  <VideoOff className="w-5 h-5" />
+                </Button>
+              </div>
+            </div>
+          ) : !preview ? (
             <div className="glass rounded-xl border-2 border-dashed border-emerald-500/30 p-12 text-center hover:border-emerald-500/60 transition-colors">
               <Camera className="w-16 h-16 text-emerald-500/40 mx-auto mb-4" />
               <h3 className="text-xl font-semibold mb-2">Upload or Capture</h3>
-              <p className="text-muted-foreground mb-6">Take a photo or upload from your gallery</p>
+              <p className="text-muted-foreground mb-6">Take a photo or use live camera to identify instantly</p>
+              {streamError && <p className="text-red-400 text-sm mb-4">{streamError}</p>}
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <Button type="button" onClick={() => inputRef.current?.click()}
+                <Button type="button" onClick={startLive}
                   className="bg-emerald-500 hover:bg-emerald-600 text-white hover-glow">
-                  <Upload className="w-5 h-5 mr-2" />Upload Image
+                  <Video className="w-5 h-5 mr-2" />Live Camera
+                </Button>
+                <Button type="button" variant="outline" onClick={() => inputRef.current?.click()}
+                  className="border-emerald-500/30 text-emerald-400">
+                  <Upload className="w-5 h-5 mr-2" />Upload Photo
                 </Button>
                 <Button type="button" variant="outline" onClick={() => cameraRef.current?.click()}
-                  className="border-emerald-500/30 text-emerald-400">
-                  <Camera className="w-5 h-5 mr-2" />Open Camera
+                  className="border-border/50 text-muted-foreground">
+                  <Camera className="w-5 h-5 mr-2" />Take Photo
                 </Button>
               </div>
             </div>
