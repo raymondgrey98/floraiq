@@ -22,6 +22,7 @@ import FarmFinance from "./pages/FarmFinance";
 import ForageMap from "./pages/ForageMap";
 import WaterTracker from "./pages/WaterTracker";
 import PlantJournal from "./pages/PlantJournal";
+import DiseaseDiagnosis from "./pages/DiseaseDiagnosis";
 
 function Router() {
   return (
@@ -42,6 +43,7 @@ function Router() {
       <Route path={"/forage"} component={ForageMap} />
       <Route path={"/water"} component={WaterTracker} />
       <Route path={"/journal"} component={PlantJournal} />
+      <Route path={"/disease"} component={DiseaseDiagnosis} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />

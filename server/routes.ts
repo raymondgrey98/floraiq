@@ -457,4 +457,65 @@ Focus on tropical plants and conditions relevant to Kuching, Sarawak, Malaysia.`
   }
 });
 
+/**
+ * POST /api/disease
+ * Plant disease detection via HuggingFace free inference API
+ * Model: linkanjarad/mobilenet_v2_1.0_224-plant-disease-identification (38 disease classes)
+ * Fallback: gianlab/swin-tiny-patch4-window7-224-finetuned-plantdisease
+ */
+router.post('/disease', upload.single('image'), async (req: Request, res: Response) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No image provided' });
+
+    const HF_KEY = process.env.HF_API_KEY || '';
+    const resized = req.file.buffer;
+
+    const headers: Record<string, string> = { 'Content-Type': 'application/octet-stream' };
+    if (HF_KEY) headers['Authorization'] = `Bearer ${HF_KEY}`;
+
+    const PRIMARY_MODEL   = 'linkanjarad/mobilenet_v2_1.0_224-plant-disease-identification';
+    const SECONDARY_MODEL = 'gianlab/swin-tiny-patch4-window7-224-finetuned-plantdisease';
+
+    async function callHF(model: string) {
+      const r = await fetch(`https://api-inference.huggingface.co/models/${model}`, {
+        method: 'POST', headers, body: resized, signal: AbortSignal.timeout(20000),
+      });
+      if (!r.ok) throw new Error(`HF ${r.status}`);
+      return await r.json() as any[];
+    }
+
+    let results: any[] = [];
+    try { results = await callHF(PRIMARY_MODEL); }
+    catch { results = await callHF(SECONDARY_MODEL); }
+
+    // Map raw labels to human-readable info
+    const mapped = (results || []).slice(0, 5).map((r: any) => {
+      const raw: string = r.label || '';
+      const score: number = Math.round((r.score || 0) * 100);
+      // Labels are like "Tomato___Late_blight" or "Apple___healthy"
+      const parts = raw.split('___');
+      const plant   = parts[0]?.replace(/_/g, ' ') || 'Unknown plant';
+      const disease = parts[1]?.replace(/_/g, ' ') || raw.replace(/_/g, ' ');
+      const healthy = disease.toLowerCase().includes('healthy');
+      return { plant, disease, healthy, score, raw };
+    });
+
+    const top = mapped[0];
+    let advice = '';
+    if (top && !top.healthy) {
+      try {
+        advice = await geminiChat(
+          [{ role: 'user', content: `My ${top.plant} has ${top.disease}. Give 3 specific treatment steps and prevention tips. Keep it under 150 words.` }],
+          'You are a plant disease expert. Focus on practical treatment for Malaysian/tropical growers. All pesticide/fungicide brands should be locally available.'
+        );
+      } catch { advice = 'Consult your local agricultural extension office for treatment options.'; }
+    }
+
+    res.json({ results: mapped, advice, model: PRIMARY_MODEL });
+  } catch (error: any) {
+    console.error('[Disease] Error:', error.message);
+    res.status(500).json({ error: 'Disease detection unavailable: ' + error.message, results: [] });
+  }
+});
+
 export default router;

@@ -1,6 +1,7 @@
 # FloraIQ — Project Memory File
 > READ THIS FIRST EVERY SESSION. DO NOT SKIP.
-> LAST UPDATED: 2026-05-31
+> LAST UPDATED: Saturday, 31 May 2026 — Session 2 (Disease Diagnosis added)
+> SESSION RULE: When user says "continue" — keep building. Do NOT stop and ask what to do next.
 
 ---
 
@@ -12,11 +13,32 @@
 
 ---
 
-## Project Vision
-FloraIQ is a **nature intelligence platform** inspired by the **PictureThis** app (Play Store).
-- **PictureThis** = the patent/design reference. FloraIQ must match its quality but be UNIQUE and original.
-- PictureThis features to match: camera scan, 400K+ species ID, disease diagnosis, care plans, toxic warnings, water tracker, species library, expert chat, plant journal.
-- FloraIQ goes BEYOND PictureThis by adding: survival toolkit, landscape OSINT, farm assistant, BioScan geolocation mapping, 25+ language support.
+## THE MISSION
+**Build FloraIQ into the #1 nature intelligence app for Southeast Asia — beating PictureThis.**
+
+FloraIQ is a **nature intelligence platform** for Malaysia and Southeast Asia.
+Reference app: **PictureThis** (Play Store) — match its quality, be UNIQUE, never copy directly.
+
+### Must match PictureThis:
+- Camera scan → instant plant/organism ID with AI
+- 400K+ species database
+- Plant disease diagnosis with photo
+- Personalised care plans (watering, sunlight, soil)
+- Toxic/dangerous plant warnings
+- Water tracker with reminders
+- Species library / plant collection
+- Expert AI chat (botany, zoology, ecology)
+- Plant journal / my garden
+
+### FloraIQ goes BEYOND PictureThis:
+- Survival toolkit (edible, medicinal, toxic plants for wilderness)
+- Landscape OSINT (satellite + terrain intelligence)
+- Farm assistant (13 tabs, crop planning, pest control, finance, market prices in RM)
+- BioScan geolocation mapping (community species sightings on a map)
+- Forage map (wild edible + medicinal plants near you)
+- 25+ language support including Malay, Iban, Mandarin, Tamil
+- All prices in RM (MYR), Malaysian species + tropical climate focus
+- Android APK (BioScan) + web app from same codebase
 
 ---
 
@@ -88,6 +110,7 @@ d1cc552  FloraIQ v2.0 — Nature Intelligence Platform
 | `/farm` | Farm Assistant | ✅ Done | 13 tabs, 25 languages, OpenFarm care data |
 | `/water` | Water Tracker | ✅ Done | Track plants, watering schedules, overdue alerts |
 | `/journal` | Plant Journal | ✅ Done | Grid/list view, search/filter, detail panel, export CSV |
+| `/disease` | Disease Diagnosis | ✅ Done | HuggingFace AI (38 disease classes), Gemini treatment advice |
 | `/history` | History / Library | ✅ Done | Species library |
 | `/profile` | User Profile | ✅ Done | |
 | `/login` | Login | ✅ Done | Not wired to backend |

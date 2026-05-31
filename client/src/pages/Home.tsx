@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
-import { Leaf, Waves, AlertTriangle, Compass, Zap, Globe, BookOpen, BarChart3, Droplets } from "lucide-react";
+import { Leaf, Waves, AlertTriangle, Compass, Zap, Globe, BookOpen, BarChart3, Droplets, Bug } from "lucide-react";
 
 /**
  * FloraIQ Home Page
@@ -78,6 +78,13 @@ export default function Home() {
       description: "Never forget to water your plants again",
       color: "from-blue-500 to-cyan-600",
       href: "/water",
+    },
+    {
+      icon: Bug,
+      title: "Disease Diagnosis",
+      description: "AI detects plant diseases from a photo",
+      color: "from-red-500 to-rose-600",
+      href: "/disease",
     },
   ];
 
