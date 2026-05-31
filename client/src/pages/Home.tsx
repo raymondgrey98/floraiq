@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
-import { Leaf, Waves, AlertTriangle, Compass, Zap, Globe, BookOpen, BarChart3, Droplets, Bug, Skull } from "lucide-react";
+import { Leaf, Waves, AlertTriangle, Compass, Zap, Globe, BookOpen, BarChart3, Droplets, Bug, Skull, Grid3X3 } from "lucide-react";
 
 /**
  * FloraIQ Home Page
@@ -92,6 +92,13 @@ export default function Home() {
       description: "Poisonous plants in Malaysia — symptoms & first aid",
       color: "from-red-700 to-red-900",
       href: "/toxic",
+    },
+    {
+      icon: Grid3X3,
+      title: "All 70 Tools",
+      description: "Full FloraIQ toolkit — 70 nature intelligence features",
+      color: "from-violet-500 to-purple-600",
+      href: "/tools",
     },
   ];
 

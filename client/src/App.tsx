@@ -24,6 +24,11 @@ import WaterTracker from "./pages/WaterTracker";
 import PlantJournal from "./pages/PlantJournal";
 import DiseaseDiagnosis from "./pages/DiseaseDiagnosis";
 import ToxicPlants from "./pages/ToxicPlants";
+import ToolsHub from "./pages/ToolsHub";
+import CompanionPlanting from "./pages/CompanionPlanting";
+import PlantingCalendar from "./pages/PlantingCalendar";
+import MoonCalendar from "./pages/MoonCalendar";
+import FertilizerCalc from "./pages/FertilizerCalc";
 
 function Router() {
   return (
@@ -46,6 +51,11 @@ function Router() {
       <Route path={"/journal"} component={PlantJournal} />
       <Route path={"/disease"} component={DiseaseDiagnosis} />
       <Route path={"/toxic"} component={ToxicPlants} />
+      <Route path={"/tools"} component={ToolsHub} />
+      <Route path={"/companion"} component={CompanionPlanting} />
+      <Route path={"/calendar"} component={PlantingCalendar} />
+      <Route path={"/moon"} component={MoonCalendar} />
+      <Route path={"/fertilizer"} component={FertilizerCalc} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />
