@@ -11,7 +11,29 @@ import { AirLLMPlantService } from './ai-service';
 import { CameraStreamService } from './camera-service';
 
 const OPENROUTER_KEY = process.env.OPENROUTER_API_KEY || '';
-const CHAT_MODEL = 'google/gemma-4-31b-it:free';
+const GEMINI_KEY     = process.env.GEMINI_API_KEY || '';
+
+async function geminiChat(messages: { role: string; content: string }[], system?: string): Promise<string> {
+  const contents = messages.map(m => ({
+    role: m.role === 'assistant' ? 'model' : 'user',
+    parts: [{ text: m.content }],
+  }));
+
+  const body: any = { contents };
+  if (system) body.systemInstruction = { parts: [{ text: system }] };
+
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
+    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+  );
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as any)?.error?.message || `Gemini ${res.status}`);
+  }
+  const data = await res.json() as any;
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+}
 
 async function openRouterChat(messages: { role: string; content: string }[], system?: string): Promise<string> {
   const msgs = system
@@ -26,7 +48,7 @@ async function openRouterChat(messages: { role: string; content: string }[], sys
       'HTTP-Referer': 'https://floraiq.app',
       'X-Title': 'FloraIQ',
     },
-    body: JSON.stringify({ model: CHAT_MODEL, messages: msgs, max_tokens: 1500 }),
+    body: JSON.stringify({ model: 'google/gemma-4-31b-it:free', messages: msgs, max_tokens: 1500 }),
   });
 
   if (!res.ok) {
@@ -415,12 +437,19 @@ router.post('/chat', async (req: Request, res: Response) => {
     }));
     msgs.push({ role: 'user', content: message });
 
-    const reply = await openRouterChat(msgs,
-      `You are FloraIQ Assistant — an expert in botany, zoology, ecology, survival skills, farming, and nature intelligence.
+    const SYSTEM = `You are FloraIQ Assistant — an expert in botany, zoology, ecology, survival skills, farming, and nature intelligence.
 You help users identify plants, animals, insects, mushrooms, and marine life.
 You give survival tips, edible plant guides, farm planning advice, and species information.
-Keep responses concise, helpful, and nature-focused. Prices always in RM (MYR) for Malaysian context.`
-    );
+Keep responses concise, helpful, and nature-focused. Prices always in RM (MYR) for Malaysian context.
+Focus on tropical plants and conditions relevant to Kuching, Sarawak, Malaysia.`;
+
+    let reply = '';
+    try {
+      reply = await geminiChat(msgs, SYSTEM);
+    } catch (geminiErr) {
+      console.warn('[Chat] Gemini failed, trying OpenRouter:', (geminiErr as Error).message);
+      reply = await openRouterChat(msgs, SYSTEM);
+    }
     res.json({ reply });
   } catch (error: any) {
     console.error('[Chat] Error:', error.message);
