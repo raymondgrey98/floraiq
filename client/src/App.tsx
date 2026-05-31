@@ -29,6 +29,13 @@ import CompanionPlanting from "./pages/CompanionPlanting";
 import PlantingCalendar from "./pages/PlantingCalendar";
 import MoonCalendar from "./pages/MoonCalendar";
 import FertilizerCalc from "./pages/FertilizerCalc";
+import HerbGuide from "./pages/HerbGuide";
+import BirdGuide from "./pages/BirdGuide";
+import PestGuide from "./pages/PestGuide";
+import IrrigationCalc from "./pages/IrrigationCalc";
+import SoilGuide from "./pages/SoilGuide";
+import CompostGuide from "./pages/CompostGuide";
+import PropagationGuide from "./pages/PropagationGuide";
 
 function Router() {
   return (
@@ -56,6 +63,13 @@ function Router() {
       <Route path={"/calendar"} component={PlantingCalendar} />
       <Route path={"/moon"} component={MoonCalendar} />
       <Route path={"/fertilizer"} component={FertilizerCalc} />
+      <Route path={"/herbs"} component={HerbGuide} />
+      <Route path={"/birds"} component={BirdGuide} />
+      <Route path={"/pest"} component={PestGuide} />
+      <Route path={"/irrigation"} component={IrrigationCalc} />
+      <Route path={"/soil"} component={SoilGuide} />
+      <Route path={"/compost"} component={CompostGuide} />
+      <Route path={"/propagation"} component={PropagationGuide} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />
