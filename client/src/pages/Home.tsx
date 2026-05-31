@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
-import { Leaf, Waves, AlertTriangle, Compass, Zap, Globe, BookOpen, BarChart3, Droplets, Bug } from "lucide-react";
+import { Leaf, Waves, AlertTriangle, Compass, Zap, Globe, BookOpen, BarChart3, Droplets, Bug, Skull } from "lucide-react";
 
 /**
  * FloraIQ Home Page
@@ -85,6 +85,13 @@ export default function Home() {
       description: "AI detects plant diseases from a photo",
       color: "from-red-500 to-rose-600",
       href: "/disease",
+    },
+    {
+      icon: Skull,
+      title: "Toxic Plants",
+      description: "Poisonous plants in Malaysia — symptoms & first aid",
+      color: "from-red-700 to-red-900",
+      href: "/toxic",
     },
   ];
 
@@ -187,12 +194,7 @@ export default function Home() {
               const Icon = feature.icon;
               return (
                 <Link key={idx} href={feature.href}>
-                  <div
-                    className="glass card-hover rounded-xl p-6 border border-border/50 group cursor-pointer hover:border-emerald-500/50 transition-all"
-                    style={{
-                      animation: `fade-in-up 0.6s ease-out ${idx * 0.1}s both`,
-                    }}
-                  >
+                  <div className="glass card-hover rounded-xl p-6 border border-border/50 group cursor-pointer hover:border-emerald-500/50 transition-all animate-fade-in-up">
                     <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${feature.color} p-3 mb-4 group-hover:scale-110 transition-transform`}>
                       <Icon className="w-6 h-6 text-white" />
                     </div>
