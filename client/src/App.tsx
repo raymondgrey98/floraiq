@@ -47,6 +47,15 @@ import GrowthLog from "./pages/GrowthLog";
 import ButterflyGarden from "./pages/ButterflyGarden";
 import PruningGuide from "./pages/PruningGuide";
 import HarvestCalc from "./pages/HarvestCalc";
+import ReptileGuide from "./pages/ReptileGuide";
+import HoneyPlants from "./pages/HoneyPlants";
+import FruitGuide from "./pages/FruitGuide";
+import VerticalGarden from "./pages/VerticalGarden";
+import InsectRepellent from "./pages/InsectRepellent";
+import MarketPrices from "./pages/MarketPrices";
+import AnimalTracks from "./pages/AnimalTracks";
+import SurvivalPlants from "./pages/SurvivalPlants";
+import NatureNavigation from "./pages/NatureNavigation";
 
 function Router() {
   return (
@@ -92,6 +101,15 @@ function Router() {
       <Route path={"/butterfly"} component={ButterflyGarden} />
       <Route path={"/pruning"} component={PruningGuide} />
       <Route path={"/harvest"} component={HarvestCalc} />
+      <Route path={"/reptiles"} component={ReptileGuide} />
+      <Route path={"/honey"} component={HoneyPlants} />
+      <Route path={"/fruits"} component={FruitGuide} />
+      <Route path={"/vertical"} component={VerticalGarden} />
+      <Route path={"/repellent"} component={InsectRepellent} />
+      <Route path={"/market"} component={MarketPrices} />
+      <Route path={"/tracks"} component={AnimalTracks} />
+      <Route path={"/survivalplants"} component={SurvivalPlants} />
+      <Route path={"/navigate"} component={NatureNavigation} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />
