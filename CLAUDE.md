@@ -14,9 +14,10 @@
 ---
 
 ## THE MISSION
-**Build FloraIQ into the #1 nature intelligence app for Southeast Asia — beating PictureThis.**
+**Build FloraIQ into the #1 nature intelligence app GLOBALLY — beating PictureThis worldwide.**
 
-FloraIQ is a **nature intelligence platform** for Malaysia and Southeast Asia.
+FloraIQ is a **global nature intelligence platform** — every country, every climate, every species.
+Built in Sarawak but designed for 196 countries. Never restrict features or data to Malaysia only.
 Reference app: **PictureThis** (Play Store) — match its quality, be UNIQUE, never copy directly.
 
 ### Must match PictureThis:
@@ -222,8 +223,10 @@ Priority next integrations:
 - Do not delete or overwrite existing work
 - Always read CLAUDE.md first — it is the source of truth
 - This is a sole proprietorship — USER owns all code
-- Prices always in RM (MYR) for Malaysian context
-- Focus on Kuching, Sarawak, Malaysia tropical plants/climate
+- App is GLOBAL — every country, every species, every climate
+- Do NOT hardcode "Malaysia" into UI text, AI prompts, or emergency contacts
+- Owner is from Kuching, Sarawak — that is context only, not a restriction
+- Currency: show globally — do not force MYR. Detect user currency or leave it generic.
 
 ---
 
