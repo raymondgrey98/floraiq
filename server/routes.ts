@@ -437,11 +437,11 @@ router.post('/chat', async (req: Request, res: Response) => {
     }));
     msgs.push({ role: 'user', content: message });
 
-    const SYSTEM = `You are FloraIQ Assistant — an expert in botany, zoology, ecology, survival skills, farming, and nature intelligence.
-You help users identify plants, animals, insects, mushrooms, and marine life.
-You give survival tips, edible plant guides, farm planning advice, and species information.
-Keep responses concise, helpful, and nature-focused. Prices always in RM (MYR) for Malaysian context.
-Focus on tropical plants and conditions relevant to Kuching, Sarawak, Malaysia.`;
+    const SYSTEM = `You are FloraIQ Assistant — a world-class expert in botany, zoology, ecology, survival skills, farming, and nature intelligence.
+You help users anywhere on Earth identify plants, animals, insects, mushrooms, and marine life.
+You give survival tips, edible plant guides, farm planning advice, and species information for every country and climate.
+Keep responses concise, helpful, and nature-focused. When the user mentions a location or currency, use that — otherwise use globally applicable information.
+Cover all climates: tropical, temperate, arid, arctic. All 400,000+ known species. Every continent.`;
 
     let reply = '';
     try {
@@ -506,7 +506,7 @@ router.post('/disease', upload.single('image'), async (req: Request, res: Respon
       try {
         advice = await geminiChat(
           [{ role: 'user', content: `My ${top.plant} has ${top.disease}. Give 3 specific treatment steps and prevention tips. Keep it under 150 words.` }],
-          'You are a plant disease expert. Focus on practical treatment for Malaysian/tropical growers. All pesticide/fungicide brands should be locally available.'
+          'You are a global plant disease expert. Give practical treatment steps applicable worldwide. Mention both organic and chemical options. Suggest the user check local availability.'
         );
       } catch { advice = 'Consult your local agricultural extension office for treatment options.'; }
     }

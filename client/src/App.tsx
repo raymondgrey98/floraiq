@@ -56,6 +56,32 @@ import MarketPrices from "./pages/MarketPrices";
 import AnimalTracks from "./pages/AnimalTracks";
 import SurvivalPlants from "./pages/SurvivalPlants";
 import NatureNavigation from "./pages/NatureNavigation";
+import SpiderGuide from "./pages/SpiderGuide";
+import MarineGuide from "./pages/MarineGuide";
+import NocturnalGuide from "./pages/NocturnalGuide";
+import AquaponicsGuide from "./pages/AquaponicsGuide";
+import ForagingCalendar from "./pages/ForagingCalendar";
+import WaterPurification from "./pages/WaterPurification";
+import UVTracker from "./pages/UVTracker";
+import RainfallPlanner from "./pages/RainfallPlanner";
+import RepottingGuide from "./pages/RepottingGuide";
+import LeafID from "./pages/LeafID";
+import WildNutrition from "./pages/WildNutrition";
+import FlowerID from "./pages/FlowerID";
+import JungleMedicine from "./pages/JungleMedicine";
+import BeekeepingGuide from "./pages/BeekeepingGuide";
+import ShelterBuilder from "./pages/ShelterBuilder";
+import SeedStarting from "./pages/SeedStarting";
+import BonsaiGuide from "./pages/BonsaiGuide";
+import WildBeeGuide from "./pages/WildBeeGuide";
+import VermiGuide from "./pages/VermiGuide";
+import GlobalMarketplace from "./pages/GlobalMarketplace";
+import AboutFloraIQ from "./pages/AboutFloraIQ";
+import AgriStoreFinder from "./pages/AgriStoreFinder";
+import PlantAnatomy from "./pages/PlantAnatomy";
+import CookingGuide from "./pages/CookingGuide";
+import FarmDashboard from "./pages/FarmDashboard";
+import LandMapper from "./pages/LandMapper";
 
 function Router() {
   return (
@@ -110,6 +136,32 @@ function Router() {
       <Route path={"/tracks"} component={AnimalTracks} />
       <Route path={"/survivalplants"} component={SurvivalPlants} />
       <Route path={"/navigate"} component={NatureNavigation} />
+      <Route path={"/spiders"} component={SpiderGuide} />
+      <Route path={"/marine"} component={MarineGuide} />
+      <Route path={"/nocturnal"} component={NocturnalGuide} />
+      <Route path={"/aquaponics"} component={AquaponicsGuide} />
+      <Route path={"/foragecal"} component={ForagingCalendar} />
+      <Route path={"/waterpure"} component={WaterPurification} />
+      <Route path={"/uv"} component={UVTracker} />
+      <Route path={"/rainfall"} component={RainfallPlanner} />
+      <Route path={"/repot"} component={RepottingGuide} />
+      <Route path={"/leaf"} component={LeafID} />
+      <Route path={"/nutrition"} component={WildNutrition} />
+      <Route path={"/flower"} component={FlowerID} />
+      <Route path={"/medicine"} component={JungleMedicine} />
+      <Route path={"/beekeeping"} component={BeekeepingGuide} />
+      <Route path={"/shelter"} component={ShelterBuilder} />
+      <Route path={"/seeds"} component={SeedStarting} />
+      <Route path={"/bonsai"} component={BonsaiGuide} />
+      <Route path={"/wildbees"} component={WildBeeGuide} />
+      <Route path={"/vermi"} component={VermiGuide} />
+      <Route path={"/marketplace"} component={GlobalMarketplace} />
+      <Route path={"/about"} component={AboutFloraIQ} />
+      <Route path={"/agristore"} component={AgriStoreFinder} />
+      <Route path={"/anatomy"} component={PlantAnatomy} />
+      <Route path={"/cooking"} component={CookingGuide} />
+      <Route path={"/farmtasks"} component={FarmDashboard} />
+      <Route path={"/landmap"} component={LandMapper} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />
