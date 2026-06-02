@@ -82,6 +82,7 @@ import PlantAnatomy from "./pages/PlantAnatomy";
 import CookingGuide from "./pages/CookingGuide";
 import FarmDashboard from "./pages/FarmDashboard";
 import LandMapper from "./pages/LandMapper";
+import DroneView from "./pages/DroneView";
 
 function Router() {
   return (
@@ -162,6 +163,7 @@ function Router() {
       <Route path={"/cooking"} component={CookingGuide} />
       <Route path={"/farmtasks"} component={FarmDashboard} />
       <Route path={"/landmap"} component={LandMapper} />
+      <Route path={"/droneview"} component={DroneView} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />
