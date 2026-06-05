@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Globe, Filter, Loader2, Search, X, MapPin, ExternalLink } from "lucide-react";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
+import * as THREE from "three";
 
 // Fix Leaflet default icon paths broken by bundlers
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -50,6 +51,43 @@ export default function SpeciesMap() {
   const mapDivRef   = useRef<HTMLDivElement>(null);
   const mapRef      = useRef<L.Map | null>(null);
   const markersRef  = useRef<L.LayerGroup | null>(null);
+  // Vanta NET background
+  const vantaBgRef    = useRef<HTMLDivElement>(null);
+  const vantaEffect   = useRef<any>(null);
+
+  // ── Memory-safe Vanta NET init & destroy ────────────────────────────────
+  useEffect(() => {
+    let mounted = true;
+    import("vanta/dist/vanta.net.min").then(({ default: NET }) => {
+      if (!mounted || !vantaBgRef.current || vantaEffect.current) return;
+      vantaEffect.current = NET({
+        el: vantaBgRef.current,
+        THREE,
+        mouseControls: true,
+        touchControls: true,
+        gyroControls: false,
+        minHeight: 200,
+        minWidth: 200,
+        scale: 1.0,
+        scaleMobile: 1.0,
+        // FloraIQ brand — deep midnight green bg, mint green net
+        color: 0x10b981,        // emerald net lines
+        backgroundColor: 0x07100c, // deep forest black-green
+        points: 9,
+        maxDistance: 22,
+        spacing: 18,
+        showDots: true,
+      });
+    });
+    return () => {
+      mounted = false;
+      // CRITICAL: destroy WebGL context on unmount to prevent memory leaks
+      if (vantaEffect.current) {
+        vantaEffect.current.destroy();
+        vantaEffect.current = null;
+      }
+    };
+  }, []);
 
   const [category, setCategory]       = useState("plant");
   const [loading, setLoading]         = useState(false);
@@ -193,7 +231,24 @@ export default function SpeciesMap() {
 
       {/* Map */}
       <div className="flex-1 relative">
-        <div ref={mapDivRef} className="w-full h-full" />
+        {/* Vanta NET WebGL background — z-0, fills container, pointer events off */}
+        <div
+          ref={vantaBgRef}
+          style={{
+            position: "absolute", inset: 0, zIndex: 0,
+            pointerEvents: "none",
+          }}
+        />
+        {/* Leaflet map — transparent bg so Vanta shows through, z-1 */}
+        <div
+          ref={mapDivRef}
+          style={{
+            position: "absolute", inset: 0, zIndex: 1,
+            background: "transparent",
+            // GPU-accelerated stacking context keeps Vanta beneath map tiles
+            transform: "translateZ(0)",
+          }}
+        />
 
         {/* Legend */}
         <div className="absolute bottom-4 left-4 glass rounded-xl p-3 border border-border/50 z-[400] text-xs space-y-1.5">

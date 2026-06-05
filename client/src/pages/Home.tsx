@@ -1,6 +1,10 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { Link } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+
+gsap.registerPlugin(ScrollTrigger);
 import {
   MagnifyingGlass, Bell, Plus, ArrowRight, Leaf, Bug, Bird, Fish,
   Skull, Flower, Tree, Butterfly, Camera, Compass, Drop,
@@ -132,11 +136,80 @@ function ScanRings() {
 const stagger = { show: { transition: { staggerChildren: 0.08 } } };
 const fadeUp  = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] } } };
 
+// ─── SVG paths: seedling → Monstera leaf morph ───────────────────────────────
+// Swap these with your exact Illustrator paths for pixel-perfect morphing.
+const PATH_SEEDLING = "M50,90 C50,90 50,60 50,50 C50,40 40,20 30,15 C40,25 48,40 50,50 C52,40 60,25 70,15 C60,20 50,40 50,50";
+const PATH_LEAF     = "M50,95 C20,80 5,55 8,30 C11,10 30,2 50,5 C70,2 89,10 92,30 C95,55 80,80 50,95 C45,70 35,50 30,35 C40,45 48,65 50,95 C52,65 60,45 70,35 C65,50 55,70 50,95Z";
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function Home() {
   const scans = useScans();
   const [tip,  setTip]  = useState(0);
   const [hovCat, setHovCat] = useState<string | null>(null);
+
+  // GSAP refs
+  const heroRef      = useRef<HTMLDivElement>(null);
+  const word1Ref     = useRef<HTMLSpanElement>(null);
+  const word2Ref     = useRef<HTMLSpanElement>(null);
+  const word3Ref     = useRef<HTMLSpanElement>(null);
+  const svgPathRef   = useRef<SVGPathElement>(null);
+  const ctaBtnRef    = useRef<HTMLDivElement>(null);
+
+  // ── GSAP: ScrollTrigger hero text reveal + SVG morph ──────────────────────
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      // 1. Staggered word reveal on scroll
+      const words = [word1Ref.current, word2Ref.current, word3Ref.current].filter(Boolean);
+      gsap.fromTo(words,
+        { y: 60, opacity: 0, rotateX: -40 },
+        {
+          y: 0, opacity: 1, rotateX: 0,
+          stagger: 0.12,
+          duration: 0.9,
+          ease: "power3.out",
+          scrollTrigger: {
+            trigger: heroRef.current,
+            start: "top 85%",
+            end: "top 40%",
+            toggleActions: "play none none reverse",
+          },
+        }
+      );
+
+      // 2. SVG seedling → Monstera morph driven by scroll progress
+      if (svgPathRef.current) {
+        gsap.to(svgPathRef.current, {
+          attr: { d: PATH_LEAF },
+          ease: "none",
+          scrollTrigger: {
+            trigger: heroRef.current,
+            start: "top top",
+            end: "bottom top",
+            scrub: 1.5,
+          },
+        });
+      }
+    }, heroRef);
+
+    // Cleanup: kill all GSAP animations + ScrollTriggers on unmount
+    return () => ctx.revert();
+  }, []);
+
+  // ── Magnetic CTA button ────────────────────────────────────────────────────
+  const onCtaMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!ctaBtnRef.current) return;
+    const rect = ctaBtnRef.current.getBoundingClientRect();
+    const cx = rect.left + rect.width  / 2;
+    const cy = rect.top  + rect.height / 2;
+    const dx = (e.clientX - cx) * 0.28;
+    const dy = (e.clientY - cy) * 0.28;
+    gsap.to(ctaBtnRef.current, { x: dx, y: dy, duration: 0.3, ease: "power2.out" });
+  }, []);
+
+  const onCtaLeave = useCallback(() => {
+    if (!ctaBtnRef.current) return;
+    gsap.to(ctaBtnRef.current, { x: 0, y: 0, duration: 0.6, ease: "elastic.out(1,0.4)" });
+  }, []);
 
   useEffect(() => {
     const t = setInterval(() => setTip(i => (i + 1) % CARE_TIPS.length), 6000);
@@ -217,7 +290,7 @@ export default function Home() {
         </motion.nav>
 
         {/* ── HERO ──────────────────────────────────────────────────────────── */}
-        <div style={{ position: "relative", overflow: "hidden", minHeight: 400 }}>
+        <div ref={heroRef} style={{ position: "relative", overflow: "hidden", minHeight: 400 }}>
 
           {/* base gradient */}
           <div style={{ position:"absolute", inset:0, background:"radial-gradient(ellipse at 50% 0%,#0d2218 0%,#07100c 65%)" }} />
@@ -259,32 +332,49 @@ export default function Home() {
               </span>
             </motion.div>
 
-            <motion.h1 variants={fadeUp} style={{
+            {/* GSAP word-split headline — each span is individually animated */}
+            <h1 style={{
               fontWeight:900, lineHeight:1.05, marginBottom:12,
               fontSize:"clamp(2.2rem,9vw,3rem)",
               textShadow:"0 2px 30px rgba(0,0,0,0.9)",
+              overflow:"hidden",
             }}>
-              Identify Any<br />
-              <span style={{
+              <span ref={word1Ref} style={{ display:"inline-block", opacity:0 }}>Identify&nbsp;</span>
+              <span ref={word2Ref} style={{ display:"inline-block", opacity:0 }}>Any</span>
+              <br />
+              <span ref={word3Ref} style={{
+                display:"inline-block", opacity:0,
                 background:"linear-gradient(135deg,#4ade80 0%,#34d399 50%,#10b981 100%)",
                 backgroundSize:"200% auto",
                 WebkitBackgroundClip:"text",
                 WebkitTextFillColor:"transparent",
                 animation:"shimmer 5s linear infinite",
-              }}>
-                Living Thing.
-              </span>
-            </motion.h1>
+              }}>Living Thing.</span>
+            </h1>
+
+            {/* SVG morph: seedling → Monstera leaf on scroll */}
+            <svg width={0} height={0} style={{ position:"absolute" }} aria-hidden="true">
+              <defs>
+                <clipPath id="leaf-morph-clip">
+                  <path ref={svgPathRef} d={PATH_SEEDLING} />
+                </clipPath>
+              </defs>
+            </svg>
 
             <motion.p variants={fadeUp} style={{ fontSize:13, lineHeight:1.65, marginBottom:28, maxWidth:290, color:"rgba(255,255,255,0.52)" }}>
               Plant, insect, bird, or fungus — point your camera and know the answer in 3 seconds.
             </motion.p>
 
-            {/* CTA button */}
+            {/* CTA button — magnetic: follows cursor via GSAP quickTo */}
             <motion.div variants={fadeUp}>
+              <div
+                ref={ctaBtnRef}
+                onMouseMove={onCtaMove}
+                onMouseLeave={onCtaLeave}
+                style={{ display:"inline-block", width:"100%" }}>
               <Link href="/scan">
                 <motion.div
-                  whileHover={{ scale: 1.025 }} whileTap={{ scale: 0.96 }}
+                  whileTap={{ scale: 0.96 }}
                   style={{
                     display:"flex", alignItems:"center", gap:16,
                     borderRadius:18, padding:16, cursor:"pointer",
@@ -314,6 +404,7 @@ export default function Home() {
                   <ArrowRight size={20} color="rgba(255,255,255,0.8)" style={{ flexShrink:0, position:"relative" }} />
                 </motion.div>
               </Link>
+              </div>
             </motion.div>
 
             {/* stats */}

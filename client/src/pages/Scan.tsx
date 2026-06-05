@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Leaf, Bug, Bird, Waves, AlertTriangle, Upload, Camera, X, Sprout, Snail, Loader2, Video, VideoOff } from "lucide-react";
 import { Link, useLocation } from "wouter";
+import ScanOverlay, { type ScanStatus } from "@/components/ScanOverlay";
 
 const MODES = [
   { id: "plant",    label: "Plant / Herb",         icon: Leaf,          color: "from-green-500 to-emerald-600" },
@@ -22,6 +23,7 @@ export default function Scan() {
   const [error, setError] = useState("");
   const [liveMode, setLiveMode] = useState(false);
   const [streamError, setStreamError] = useState("");
+  const [scanStatus, setScanStatus] = useState<ScanStatus>("idle");
   const inputRef  = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
   const videoRef  = useRef<HTMLVideoElement>(null);
@@ -81,6 +83,7 @@ export default function Scan() {
   async function handleAnalyze() {
     if (!file) return;
     setLoading(true);
+    setScanStatus("scanning");
     setError("");
 
     try {
@@ -135,10 +138,14 @@ export default function Scan() {
         localStorage.setItem("floraiq_scan_history", JSON.stringify(history.slice(0, 100)));
       } catch {}
 
+      setScanStatus("success");
+      await new Promise(r => setTimeout(r, 900));
       navigate("/scan-results");
     } catch (e: any) {
+      setScanStatus("error");
       setError(e.message || "Identification failed. Please try again.");
       setLoading(false);
+      setTimeout(() => setScanStatus("idle"), 2000);
     }
   }
 
@@ -190,10 +197,7 @@ export default function Scan() {
               <div className="relative bg-black">
                 <video ref={videoRef} autoPlay playsInline muted
                   className="w-full max-h-80 object-cover" />
-                {/* Scan reticle overlay */}
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className="w-48 h-48 border-2 border-emerald-400/60 rounded-xl" />
-                </div>
+                <ScanOverlay status={scanStatus} />
                 <div className="absolute top-3 left-3 bg-black/60 text-emerald-400 text-xs px-2 py-1 rounded-full flex items-center gap-1">
                   <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />LIVE
                 </div>
@@ -234,6 +238,7 @@ export default function Scan() {
             <div className="glass rounded-xl p-5 border border-emerald-500/30 space-y-4">
               <div className="relative rounded-lg overflow-hidden">
                 <img src={preview} alt="Preview" className="w-full h-80 object-cover" />
+                <ScanOverlay status={scanStatus} />
                 <button type="button" aria-label="Remove image" title="Remove image" onClick={() => { setPreview(null); setFile(null); setError(""); }}
                   className="absolute top-3 right-3 bg-black/60 hover:bg-black/80 rounded-full p-2 transition">
                   <X className="w-4 h-4 text-white" />
