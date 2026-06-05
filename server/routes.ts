@@ -518,4 +518,84 @@ router.post('/disease', upload.single('image'), async (req: Request, res: Respon
   }
 });
 
+/**
+ * GET /api/weather/forecast
+ * 7-day forecast via Open-Meteo (free, no API key)
+ * Used by: Farm Assistant, Water Tracker, Planting Calendar
+ * Query params: lat, lon
+ */
+interface OpenMeteoDaily {
+  time: string[];
+  temperature_2m_max: number[];
+  temperature_2m_min: number[];
+  precipitation_sum: number[];
+  windspeed_10m_max: number[];
+  weathercode: number[];
+}
+interface OpenMeteoResponse {
+  daily: OpenMeteoDaily;
+  timezone: string;
+  latitude: number;
+  longitude: number;
+}
+
+router.get('/weather/forecast', async (req: Request, res: Response): Promise<any> => {
+  const { lat, lon } = req.query;
+  if (!lat || !lon) return res.status(400).json({ error: 'lat and lon query params required' });
+
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+      `&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,weathercode` +
+      `&timezone=auto&forecast_days=7`;
+
+    const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!response.ok) throw new Error(`Open-Meteo returned ${response.status}`);
+
+    const data = (await response.json()) as OpenMeteoResponse;
+    const d    = data.daily;
+
+    // Weather code → human label (WMO codes)
+    function weatherLabel(code: number): string {
+      if (code === 0)            return "Clear sky";
+      if (code <= 3)             return "Partly cloudy";
+      if (code <= 49)            return "Foggy";
+      if (code <= 59)            return "Drizzle";
+      if (code <= 69)            return "Rain";
+      if (code <= 79)            return "Snow";
+      if (code <= 82)            return "Rain showers";
+      if (code <= 84)            return "Snow showers";
+      if (code <= 99)            return "Thunderstorm";
+      return "Unknown";
+    }
+
+    // Agronomic advice based on conditions
+    function farmAdvice(maxTemp: number, rain: number, wind: number): string {
+      if (maxTemp > 35)  return "High heat — water in early morning, shade seedlings";
+      if (rain > 20)     return "Heavy rain forecast — hold irrigation, check drainage";
+      if (rain > 10)     return "Good soil moisture — reduce watering schedule";
+      if (wind > 40)     return "Strong winds — stake tall crops, delay spraying";
+      if (maxTemp < 10)  return "Cold temperatures — cover frost-sensitive crops";
+      return "Conditions normal — standard care applies";
+    }
+
+    const timeline = d.time.map((date, i) => ({
+      date,
+      maxTempC:       d.temperature_2m_max[i],
+      minTempC:       d.temperature_2m_min[i],
+      precipitationMm: d.precipitation_sum[i],
+      windKmh:        d.windspeed_10m_max[i],
+      condition:      weatherLabel(d.weathercode[i]),
+      farmAdvice:     farmAdvice(d.temperature_2m_max[i], d.precipitation_sum[i], d.windspeed_10m_max[i]),
+    }));
+
+    res.json({
+      meta: { latitude: data.latitude, longitude: data.longitude, timezone: data.timezone },
+      timeline,
+    });
+  } catch (err: any) {
+    console.error('[Weather]', err.message);
+    res.status(500).json({ error: 'Weather forecast unavailable', details: err.message });
+  }
+});
+
 export default router;

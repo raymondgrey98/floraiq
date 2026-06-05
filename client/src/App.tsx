@@ -4,7 +4,10 @@ import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { WorkstationProvider } from "./context/WorkstationContext";
 import Home from "./pages/Home";
+import ScanViewfinder from "./pages/ScanViewfinder";
+import ScanProcessing from "./pages/ScanProcessing";
 import Scan from "./pages/Scan";
 import LandscapeIntelligence from "./pages/LandscapeIntelligence";
 import SurvivalToolkit from "./pages/SurvivalToolkit";
@@ -88,7 +91,11 @@ function Router() {
   return (
     <Switch>
       <Route path={"/"} component={Home} />
-      <Route path={"/scan"} component={Scan} />
+      {/* FSM scan pipeline — viewfinder → processing → results */}
+      <Route path={"/scan"} component={ScanViewfinder} />
+      <Route path={"/scan/processing"} component={ScanProcessing} />
+      {/* Legacy /scan entry kept alive for old links */}
+      <Route path={"/scan/legacy"} component={Scan} />
       <Route path={"/scan-results"} component={ScanResults} />
       <Route path={"/landscape"} component={LandscapeIntelligence} />
       <Route path={"/survival"} component={SurvivalToolkit} />
@@ -171,20 +178,19 @@ function Router() {
   );
 }
 
-// Dark theme for FloraIQ - premium, scientific aesthetic
 function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider
-        defaultTheme="dark"
-      >
-        <TooltipProvider>
-          <Toaster />
-          <Router />
-          <Chatbot />
-          <BottomNav />
-        </TooltipProvider>
-      </ThemeProvider>
+      <WorkstationProvider>
+        <ThemeProvider defaultTheme="dark">
+          <TooltipProvider>
+            <Toaster richColors position="top-center" />
+            <Router />
+            <Chatbot />
+            <BottomNav />
+          </TooltipProvider>
+        </ThemeProvider>
+      </WorkstationProvider>
     </ErrorBoundary>
   );
 }
