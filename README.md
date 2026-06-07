@@ -1,157 +1,72 @@
-# 🌿 FloraIQ — Nature Intelligence Platform
+# FloraIQ
 
-> **Identify any living thing in 3 seconds. 400,000+ species. 196 countries. Free forever.**
+Point your camera at anything living — plant, insect, bird, mushroom — and know what it is in seconds. Built for the whole world, not just one country.
 
-![FloraIQ Hero](https://images.unsplash.com/photo-1448375240586-882707db888b?w=1200&q=80)
+![hero](https://images.unsplash.com/photo-1448375240586-882707db888b?w=1200&q=80)
 
 ---
 
-## What is FloraIQ?
+## What it does
 
-FloraIQ is a **global nature intelligence platform** combining AI-powered species identification, plant care, farm management, foraging tools, and biodiversity mapping — all in one app. Designed for every country, every climate, every species.
+FloraIQ identifies species using AI vision, gives you care guides, disease diagnosis, a foraging map, and a full farm management toolkit. Think PictureThis but with more tools and no paywall.
+
+Works on web and Android (via Capacitor).
 
 ---
 
 ## Features
 
-### Core
-| Feature | Status |
-|---|---|
-| Camera scan → instant AI plant/organism ID | ✅ Live |
-| 400K+ species database (GBIF + iNaturalist) | ✅ Live |
-| Plant disease diagnosis — 38 disease classes | ✅ Live |
-| Personalised care plans via OpenFarm | ✅ Live |
-| Toxic/dangerous plant warnings | ✅ Live |
-| Water tracker with smart reminders | ✅ Live |
-| Species library and plant collection | ✅ Live |
-| Expert AI chat — botany, zoology, ecology | ✅ Live |
-| Plant journal and my garden | ✅ Live |
-
-### FloraIQ Exclusive
-| Feature | Status |
-|---|---|
-| Wilderness toolkit — edible, medicinal, toxic plants | ✅ Live |
-| Landscape intelligence — satellite and terrain view | ✅ Live |
-| Farm assistant — 13-tab AI toolkit for farmers | ✅ Live |
-| BioScan geolocation species mapping | ✅ Live |
-| Forage map — wild edible and medicinal plants near you | ✅ Live |
-| 25+ language support | ✅ Live |
-| 70+ free data source integrations | ✅ Live |
-| Android APK via Capacitor | ✅ Built |
+- **Species ID** — plants, insects, birds, fungi, marine life, reptiles from a photo
+- **Disease diagnosis** — detects 38 plant disease classes with treatment advice
+- **Forage map** — finds edible and medicinal wild plants near your location
+- **Farm assistant** — crop planning, pest control, market prices, irrigation, soil guides
+- **Species map** — live sightings from GBIF on an interactive map
+- **Water tracker** — watering schedules with overdue alerts
+- **Plant journal** — track your garden over time
+- **Wilderness toolkit** — edible, toxic, and medicinal plant guides for survival
+- **70+ tools** — moon calendar, companion planting, bonsai, beekeeping, and more
 
 ---
 
-## Tech Stack
+## Stack
 
-```
-Frontend:   React 19 + TypeScript + Vite 7 + Tailwind CSS v4
-UI:         Radix UI (shadcn/ui) · Framer Motion · Phosphor Icons
-Backend:    Express.js · OpenRouter AI API
-Maps:       Leaflet + react-leaflet + GBIF live data
-Animations: Framer Motion · Canvas WaveOrb · Lottie · GSAP-ready · Floating SVG particles
-Mobile:     Capacitor v8 (Android)
-```
+- **Frontend** — React 19, TypeScript, Vite 7, Tailwind CSS v4
+- **UI** — Radix UI / shadcn, Framer Motion, Phosphor Icons, GSAP
+- **Backend** — Express.js, Gemini API, OpenRouter
+- **Maps** — Leaflet, GBIF, iNaturalist
+- **Auth + DB** — Supabase (optional)
+- **Mobile** — Capacitor v8 (Android APK)
 
 ---
 
-## Animation Stack
-
-FloraIQ uses layered premium animations — no emoji, no placeholders:
-
-| Animation | Component | Description |
-|---|---|---|
-| Aurora hero orbs | `Home.tsx` | 3 floating CSS gradient blobs in the hero |
-| Dancing leaf particles | `Home.tsx` | 18 SVG leaves rising and drifting in the wind |
-| Shimmer headline | `Home.tsx` | Gradient text sweep on the hero title |
-| Pulsing scan button | `Home.tsx` | Glow pulse + shimmer sweep on CTA |
-| Wave Orb | `WaveOrb.tsx` | 3D particle sphere — 380 Fibonacci-distributed particles, wave distortion |
-| Loading overlay | `LoadingScreen.tsx` | Full-screen orb + animated progress bar sweep |
-| AI thinking orb | `Chatbot.tsx` | WaveOrb appears when AI is processing |
-| Framer Motion | Everywhere | Staggered entrances, hover lift, tap scale, slide transitions |
-| Lottie-ready | — | `lottie-react` installed — drop in any `.json` from LottieFiles |
-| GSAP-ready | — | Add `pnpm add gsap` to unlock MorphSVG, ScrollTrigger, DrawSVG |
-
----
-
-## Pages
-
-| Route | Page | Status |
-|---|---|---|
-| `/` | Home | ✅ Redesigned |
-| `/scan` | Identify Organism | ✅ Live |
-| `/scan-results` | Scan Results | ✅ Live |
-| `/disease` | Disease Diagnosis | ✅ Live |
-| `/farm` | Farm Assistant | ✅ Live |
-| `/forage` | Forage Map | ✅ Live |
-| `/survival` | Wilderness Toolkit | ✅ Live |
-| `/map` | Species Map | ✅ Live |
-| `/water` | Water Tracker | ✅ Live |
-| `/journal` | Plant Journal | ✅ Live |
-| `/tools` | Tools Hub (70 tools) | ✅ Live |
-| + 40 more | Guides, calculators, ID tools | ✅ Live |
-
----
-
-## Getting Started
+## Running locally
 
 ```bash
-# Install dependencies
 pnpm install
-
-# Run development server
 pnpm dev
-# → Frontend: http://localhost:3000
-# → Backend:  http://localhost:7171
 ```
 
-### Environment Variables
+Frontend runs on `localhost:3000`, backend on `localhost:7171`.
 
-Create a `.env` file in the project root:
+**Required `.env`:**
 
 ```env
-OPENROUTER_API_KEY=your_key_here
-GEMINI_API_KEY=your_key_here
+OPENROUTER_API_KEY=
+GEMINI_API_KEY=
+```
+
+**Optional (for auth and persistent chat):**
+
+```env
+SUPABASE_URL=
+SUPABASE_SECRET_KEY=
+VITE_SUPABASE_URL=
+VITE_SUPABASE_PUBLISHABLE_KEY=
 ```
 
 ---
 
-## Project Structure
-
-```
-floraiq-extract/
-├── client/
-│   └── src/
-│       ├── pages/           # 50+ page components
-│       ├── components/
-│       │   ├── WaveOrb.tsx       # 3D canvas particle sphere
-│       │   ├── LoadingScreen.tsx # Loading overlay with orb
-│       │   ├── Chatbot.tsx       # AI chat with thinking animation
-│       │   ├── BottomNav.tsx     # Mobile bottom navigation
-│       │   └── ui/               # shadcn/ui base components
-│       └── App.tsx
-├── server/
-│   ├── index.ts             # Express server
-│   └── routes.ts            # API routes
-└── android/                 # Capacitor Android project
-```
-
----
-
-## API Routes
-
-| Method | Route | Description |
-|---|---|---|
-| POST | `/api/identify` | AI species ID from image |
-| POST | `/api/identify/inat` | iNaturalist Computer Vision |
-| POST | `/api/chat` | AI nature assistant |
-| POST | `/api/disease` | Plant disease diagnosis |
-| GET | `/api/species/:name` | Species detail |
-| GET | `/api/species/forage` | Edible plants from GBIF |
-| POST | `/api/bioscan/sync` | Geolocation + species record |
-
----
-
-## Build for Android
+## Android build
 
 ```bash
 pnpm build
@@ -161,12 +76,26 @@ npx cap open android
 
 ---
 
-## Contributing
+## Project layout
 
-Pull requests welcome. Open an issue first for major changes.
+```text
+client/src/
+  pages/       50+ route components
+  components/  WaveOrb, ScanOverlay, Chatbot, BottomNav, etc.
+  context/     WorkstationContext (auth + scan state)
+
+server/
+  routes.ts         API endpoints
+  services/
+    gemini.service.ts   Gemini chat + vision
+    disease.service.ts  HuggingFace plant disease
+
+supabase/
+  migrations/   SQL schema for chat sessions + observations
+```
 
 ---
 
 ## License
 
-MIT © [raymondgrey98](https://github.com/raymondgrey98)
+MIT
