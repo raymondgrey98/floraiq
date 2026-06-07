@@ -14,6 +14,7 @@ export default function Login() {
   async function handleEmailLogin(e: React.FormEvent) {
     e.preventDefault();
     if (!email || !password) { toast.error("Please fill in all fields."); return; }
+    if (!supabase) { toast.error("Auth not configured."); return; }
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
@@ -23,6 +24,7 @@ export default function Login() {
   }
 
   async function handleGoogleLogin() {
+    if (!supabase) { toast.error("Auth not configured."); return; }
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo: window.location.origin },
@@ -32,6 +34,7 @@ export default function Login() {
 
   async function handleForgotPassword() {
     if (!email) { toast.error("Enter your email address first."); return; }
+    if (!supabase) { toast.error("Auth not configured."); return; }
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reset-password`,
     });

@@ -11,6 +11,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
 import { useWorkstation } from "@/context/WorkstationContext";
+import { useSoundEffect } from "@/hooks/useSoundEffect";
 import {
   Leaf, Bug, Bird, Fish, Skull, Sprout, Waves, AlertTriangle,
   Upload, ArrowLeft,
@@ -36,6 +37,7 @@ export default function ScanViewfinder() {
   const [selectedMode, setSelectedMode] = useState("plant");
 
   const { setActiveScanBlob, setActiveScanMode } = useWorkstation();
+  const sound = useSoundEffect();
 
   // ── Init camera ─────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -69,6 +71,7 @@ export default function ScanViewfinder() {
   // ── Capture frame → context → navigate ─────────────────────────────────────
   const captureFrame = useCallback(() => {
     if (!videoRef.current || !streamActive) return;
+    sound("capture");
 
     const canvas      = document.createElement("canvas");
     canvas.width      = videoRef.current.videoWidth  || 1280;
@@ -178,7 +181,7 @@ export default function ScanViewfinder() {
           <button
             key={id}
             type="button"
-            onClick={() => setSelectedMode(id)}
+            onClick={() => { sound("tap"); setSelectedMode(id); }}
             className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
               selectedMode === id
                 ? "border-emerald-500/60 bg-emerald-500/20 text-emerald-300"

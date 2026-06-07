@@ -73,8 +73,10 @@ export default function ScanProcessing() {
 
         setActiveScanResult(enriched);
 
-        // Persist to localStorage history
+        // Persist to localStorage history (non-fatal)
         try {
+          // Store a 120px thumbnail instead of the full data URL — prevents localStorage overflow
+          const thumb = await resizeDataURL(enriched.photoUrl ?? "", 120);
           const history = JSON.parse(localStorage.getItem("floraiq_scan_history") || "[]");
           history.unshift({
             id:         enriched.id,
@@ -82,14 +84,15 @@ export default function ScanProcessing() {
             scientific: enriched.scientificName,
             type:       activeScanMode,
             confidence: Math.round((enriched.confidence || 0.5) * 100),
-            photoUrl:   enriched.photoUrl,
+            photoUrl:   thumb,
             date:       enriched.date,
           });
-          localStorage.setItem("floraiq_scan_history", JSON.stringify(history.slice(0, 100)));
-          localStorage.setItem("floraiq_last_scan", JSON.stringify(enriched));
+          localStorage.setItem("floraiq_scan_history", JSON.stringify(history.slice(0, 50)));
+          // Full result kept in sessionStorage (cleared on tab close, no size spiral)
+          sessionStorage.setItem("floraiq_last_scan", JSON.stringify(enriched));
         } catch { /* storage full — non-fatal */ }
 
-        setLocation("/scan-results");
+        setLocation("/scan/results/active");
       } catch (err: any) {
         if (err.name === "AbortError") return; // navigated away cleanly
 
@@ -176,5 +179,22 @@ function blobToDataURL(blob: Blob): Promise<string> {
     reader.onload  = () => res(reader.result as string);
     reader.onerror = rej;
     reader.readAsDataURL(blob);
+  });
+}
+
+function resizeDataURL(dataURL: string, maxPx: number): Promise<string> {
+  return new Promise(res => {
+    if (!dataURL) { res(""); return; }
+    const img = new Image();
+    img.onload = () => {
+      const scale  = Math.min(maxPx / img.width, maxPx / img.height, 1);
+      const canvas = document.createElement("canvas");
+      canvas.width  = Math.round(img.width  * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+      res(canvas.toDataURL("image/jpeg", 0.6));
+    };
+    img.onerror = () => res("");
+    img.src = dataURL;
   });
 }

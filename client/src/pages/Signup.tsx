@@ -17,6 +17,7 @@ export default function Signup() {
     if (!name || !email || !password) { toast.error("Please fill in all fields."); return; }
     if (password.length < 8) { toast.error("Password must be at least 8 characters."); return; }
 
+    if (!supabase) { toast.error("Auth not configured."); setLoading(false); return; }
     setLoading(true);
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -39,6 +40,7 @@ export default function Signup() {
   }
 
   async function handleGoogleSignup() {
+    if (!supabase) { toast.error("Auth not configured."); return; }
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo: window.location.origin },

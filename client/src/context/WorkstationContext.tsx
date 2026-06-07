@@ -9,8 +9,11 @@ const SUPABASE_ANON_KEY = (
   ""
 );
 
-// Export so Login/Signup/Profile can call auth methods directly
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Guard: createClient throws synchronously if URL is empty (SDK v2.x+)
+// App works fully without Supabase — auth features are simply disabled.
+export const supabase = (SUPABASE_URL && SUPABASE_ANON_KEY)
+  ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  : null;
 
 // ── Shared type (matches server/ai-service.ts output) ────────────────────────
 export interface PlantIdentificationResult {
@@ -63,8 +66,7 @@ export function WorkstationProvider({ children }: { children: React.ReactNode })
 
   // ── Supabase auth bootstrap ─────────────────────────────────────────────────
   useEffect(() => {
-    // Supabase only works if URL + key are configured
-    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    if (!supabase) {
       setAuthLoading(false);
       return;
     }
@@ -85,7 +87,7 @@ export function WorkstationProvider({ children }: { children: React.ReactNode })
   }, []);
 
   const signOut = useCallback(async () => {
-    if (SUPABASE_URL) await supabase.auth.signOut();
+    if (supabase) await supabase.auth.signOut();
     setActiveScanBlob(null);
     setActiveScanResult(null);
   }, []);

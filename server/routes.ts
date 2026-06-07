@@ -31,15 +31,16 @@ const supabaseAdmin = (() => {
 
 // ── Utility ───────────────────────────────────────────────────────────────────
 
-function extractUserId(req: Request): string | null {
-  // Extract from Authorization header: "Bearer <supabase_access_token>"
+// Verifies the Supabase JWT server-side via getUser() — never trusts the raw payload.
+// Falls back gracefully to null if Supabase admin client is not configured.
+async function extractUserId(req: Request): Promise<string | null> {
   const auth = req.headers.authorization;
   if (!auth?.startsWith("Bearer ")) return null;
+  if (!supabaseAdmin) return null;
   try {
-    const payload = JSON.parse(
-      Buffer.from(auth.slice(7).split(".")[1], "base64").toString("utf8"),
-    );
-    return payload.sub ?? null;
+    const { data, error } = await supabaseAdmin.auth.getUser(auth.slice(7));
+    if (error || !data?.user) return null;
+    return data.user.id;
   } catch {
     return null;
   }
@@ -96,7 +97,7 @@ router.post("/identify", upload.single("image"), async (req: Request, res: Respo
     }
 
     // Persist observation to Supabase (non-blocking)
-    const userId = extractUserId(req);
+    const userId = await extractUserId(req);
     if (supabaseAdmin) {
       supabaseAdmin.from("observations").insert({
         user_id:        userId,
@@ -189,7 +190,7 @@ router.post("/chat", async (req: Request, res: Response) => {
       return;
     }
 
-    const userId = extractUserId(req);
+    const userId = await extractUserId(req);
 
     const result = await geminiService.chat({
       sessionId,
@@ -216,7 +217,7 @@ router.post("/chat", async (req: Request, res: Response) => {
 // List all chat sessions for the authenticated user
 
 router.get("/chat/sessions", async (req: Request, res: Response) => {
-  const userId = extractUserId(req);
+  const userId = await extractUserId(req);
   if (!userId) { res.status(401).json({ error: "Authentication required" }); return; }
   if (!supabaseAdmin) { res.json({ sessions: [] }); return; }
 
@@ -239,7 +240,7 @@ router.get("/chat/sessions", async (req: Request, res: Response) => {
 // Fetch all messages for a specific session
 
 router.get("/chat/sessions/:id/messages", async (req: Request, res: Response) => {
-  const userId    = extractUserId(req);
+  const userId    = await extractUserId(req);
   const sessionId = req.params.id;
 
   if (!supabaseAdmin) { res.json({ messages: [] }); return; }
@@ -331,7 +332,7 @@ router.post("/bioscan/sync", async (req: Request, res: Response) => {
       return;
     }
 
-    const userId = extractUserId(req);
+    const userId = await extractUserId(req);
     const record = {
       id:         `bioscan_${Date.now()}`,
       userId,
@@ -362,6 +363,30 @@ router.post("/bioscan/sync", async (req: Request, res: Response) => {
   }
 });
 
+// ── Weather helpers (module-level — strict mode requires this) ────────────────
+
+function weatherLabel(code: number): string {
+  if (code === 0)  return "Clear sky";
+  if (code <= 3)   return "Partly cloudy";
+  if (code <= 49)  return "Foggy";
+  if (code <= 59)  return "Drizzle";
+  if (code <= 69)  return "Rain";
+  if (code <= 79)  return "Snow";
+  if (code <= 82)  return "Rain showers";
+  if (code <= 84)  return "Snow showers";
+  if (code <= 99)  return "Thunderstorm";
+  return "Unknown";
+}
+
+function farmAdvice(maxC: number, rainMm: number, windKmh: number): string {
+  if (maxC > 35)    return "Extreme heat — water at dawn, shade young seedlings";
+  if (rainMm > 20)  return "Heavy rain — pause irrigation, monitor drainage";
+  if (rainMm > 10)  return "Good moisture — reduce watering frequency";
+  if (windKmh > 40) return "Strong winds — stake tall crops, delay foliar sprays";
+  if (maxC < 10)    return "Cold conditions — protect frost-sensitive crops overnight";
+  return "Conditions optimal — follow standard care schedule";
+}
+
 // ── GET /api/weather/forecast ─────────────────────────────────────────────────
 // 7-day agronomic forecast via Open-Meteo (no API key required)
 
@@ -390,28 +415,6 @@ router.get("/weather/forecast", async (req: Request, res: Response) => {
       windspeed_10m_max: number[];
       weathercode: number[];
     };
-
-    function weatherLabel(code: number): string {
-      if (code === 0)  return "Clear sky";
-      if (code <= 3)   return "Partly cloudy";
-      if (code <= 49)  return "Foggy";
-      if (code <= 59)  return "Drizzle";
-      if (code <= 69)  return "Rain";
-      if (code <= 79)  return "Snow";
-      if (code <= 82)  return "Rain showers";
-      if (code <= 84)  return "Snow showers";
-      if (code <= 99)  return "Thunderstorm";
-      return "Unknown";
-    }
-
-    function farmAdvice(maxC: number, rainMm: number, windKmh: number): string {
-      if (maxC > 35)    return "Extreme heat — water at dawn, shade young seedlings";
-      if (rainMm > 20)  return "Heavy rain — pause irrigation, monitor drainage";
-      if (rainMm > 10)  return "Good moisture — reduce watering frequency";
-      if (windKmh > 40) return "Strong winds — stake tall crops, delay foliar sprays";
-      if (maxC < 10)    return "Cold conditions — protect frost-sensitive crops overnight";
-      return "Conditions optimal — follow standard care schedule";
-    }
 
     const timeline = d.time.map((date, i) => ({
       date,

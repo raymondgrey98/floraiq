@@ -573,7 +573,7 @@ export default function Home() {
                         transition:"border-color 0.25s, box-shadow 0.25s",
                       }}
                       onHoverStart={e => {
-                        const el = (e.target as HTMLElement).closest("[data-card]") as HTMLElement;
+                        const el = e.target ? (e.target as HTMLElement).closest("[data-card]") as HTMLElement | null : null;
                         if (el) { el.style.borderColor = "rgba(16,185,129,0.4)"; el.style.boxShadow = "0 12px 40px rgba(16,185,129,0.15)"; }
                       }}>
                       <div style={{ position:"relative", height:128, overflow:"hidden" }}>
@@ -613,14 +613,11 @@ export default function Home() {
                 <motion.div key={href} variants={fadeUp}>
                   <Link href={href}>
                     <motion.div
-                      whileHover={{ y:-3 }}
+                      whileHover={{ y:-3, boxShadow: `0 14px 40px ${accent}55` }}
                       style={{
                         position:"relative", borderRadius:18, overflow:"hidden",
                         height:148, cursor:"pointer",
-                        transition:"box-shadow 0.3s",
-                      }}
-                      onHoverStart={e => { (e.currentTarget as HTMLElement).style.boxShadow = `0 14px 40px ${accent}35`; }}
-                      onHoverEnd={e => { (e.currentTarget as HTMLElement).style.boxShadow = "none"; }}>
+                      }}>
                       {/* photo */}
                       <img src={img} alt={label} style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover" }}
                         onError={e => { (e.target as HTMLImageElement).style.background = "#1a2e1e"; }} />

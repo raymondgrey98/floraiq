@@ -8,6 +8,7 @@ import { WorkstationProvider } from "./context/WorkstationContext";
 import Home from "./pages/Home";
 import ScanViewfinder from "./pages/ScanViewfinder";
 import ScanProcessing from "./pages/ScanProcessing";
+import ObservationWorkspace from "./pages/ObservationWorkspace";
 import Scan from "./pages/Scan";
 import LandscapeIntelligence from "./pages/LandscapeIntelligence";
 import SurvivalToolkit from "./pages/SurvivalToolkit";
@@ -91,10 +92,10 @@ function Router() {
   return (
     <Switch>
       <Route path={"/"} component={Home} />
-      {/* FSM scan pipeline — viewfinder → processing → results */}
+      {/* FSM pipeline: viewfinder → processing → observation workspace */}
       <Route path={"/scan"} component={ScanViewfinder} />
       <Route path={"/scan/processing"} component={ScanProcessing} />
-      {/* Legacy /scan entry kept alive for old links */}
+      <Route path={"/scan/results/active"} component={ObservationWorkspace} />
       <Route path={"/scan/legacy"} component={Scan} />
       <Route path={"/scan-results"} component={ScanResults} />
       <Route path={"/landscape"} component={LandscapeIntelligence} />
