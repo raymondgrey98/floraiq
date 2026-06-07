@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "license": "MIT",
+  "main": "electron/main.js",
   "scripts": {
     "dev": "concurrently \"npx tsx --env-file=.env server/index.ts\" \"vite --host\"",
     "dev:frontend": "vite --host",
@@ -11,7 +12,37 @@
     "start": "NODE_ENV=production node dist/index.js",
     "preview": "vite preview --host",
     "check": "tsc --noEmit",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "electron:dev": "vite build && electron .",
+    "electron:build": "vite build && electron-builder --win --x64",
+    "cap:sync": "pnpm build && npx cap sync android",
+    "cap:apk": "pnpm build && npx cap sync android && cd android && gradlew.bat assembleDebug"
+  },
+  "build": {
+    "appId": "com.floraiq.app",
+    "productName": "FloraIQ",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "electron/**/*",
+      "dist/public/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "icon": "electron/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "electron/icon.ico",
+      "installerHeaderIcon": "electron/icon.ico",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "FloraIQ"
+    }
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.99.0",
@@ -101,6 +132,8 @@
     "add": "^2.0.6",
     "autoprefixer": "^10.4.20",
     "concurrently": "^9.2.1",
+    "electron": "^42.3.3",
+    "electron-builder": "^26.15.0",
     "esbuild": "^0.25.0",
     "pnpm": "^10.15.1",
     "postcss": "^8.4.47",

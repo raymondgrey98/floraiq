@@ -1,7 +1,9 @@
 node_modules/
 dist/
+dist-electron/
 .env
 .env.local
+.env*.local
 .manus-logs/
 android/
 *.apk
@@ -10,3 +12,8 @@ android/
 Thumbs.db
 .project-config.json
 CLAUDE.md
+*.local
+attached_assets/
+patches/
+electron/icon.ico
+electron/icon.png
