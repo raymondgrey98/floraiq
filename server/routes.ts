@@ -1,601 +1,451 @@
-/**
- * FloraIQ Backend API Routes
- * Integrates AirLLM for plant identification
- * Connects with BioScan for geolocation data
- * Supports real-time camera streaming
- */
+import express, { Request, Response, NextFunction } from "express";
+import multer from "multer";
+import { createClient } from "@supabase/supabase-js";
+import { AirLLMPlantService } from "./ai-service";
+import {
+  geminiService,
+  GeminiServiceError,
+  SessionNotFoundError,
+} from "./services/gemini.service";
+import {
+  diseaseService,
+  DiseaseServiceError,
+  InvalidPayloadError,
+} from "./services/disease.service";
 
-import express, { Request, Response } from 'express';
-import multer from 'multer';
-import { AirLLMPlantService } from './ai-service';
-import { CameraStreamService } from './camera-service';
-
-const OPENROUTER_KEY = process.env.OPENROUTER_API_KEY || '';
-const GEMINI_KEY     = process.env.GEMINI_API_KEY || '';
-
-async function geminiChat(messages: { role: string; content: string }[], system?: string): Promise<string> {
-  const contents = messages.map(m => ({
-    role: m.role === 'assistant' ? 'model' : 'user',
-    parts: [{ text: m.content }],
-  }));
-
-  const body: any = { contents };
-  if (system) body.systemInstruction = { parts: [{ text: system }] };
-
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
-    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
-  );
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error((err as any)?.error?.message || `Gemini ${res.status}`);
-  }
-  const data = await res.json() as any;
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-}
-
-async function openRouterChat(messages: { role: string; content: string }[], system?: string): Promise<string> {
-  const msgs = system
-    ? [{ role: 'system', content: system }, ...messages]
-    : messages;
-
-  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${OPENROUTER_KEY}`,
-      'Content-Type': 'application/json',
-      'HTTP-Referer': 'https://floraiq.app',
-      'X-Title': 'FloraIQ',
-    },
-    body: JSON.stringify({ model: 'google/gemma-4-31b-it:free', messages: msgs, max_tokens: 1500 }),
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error((err as any)?.error?.message || `OpenRouter ${res.status}`);
-  }
-  const data = await res.json() as any;
-  return data.choices?.[0]?.message?.content || '';
-}
+// ── Infrastructure ────────────────────────────────────────────────────────────
 
 const router = express.Router();
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } });
 
 const aiService = new AirLLMPlantService();
-const cameraService = new CameraStreamService();
-
-// Initialize AI model on startup
 aiService.initializeModel().catch(console.error);
 
-/**
- * POST /api/identify
- * Identify plant from uploaded image
- * Returns: Scientific name, common names, characteristics, care instructions
- */
-router.post('/identify', upload.single('image'), async (req: Request, res: Response) => {
+// Server-side Supabase client (service role — never sent to browser)
+const supabaseAdmin = (() => {
+  const url    = process.env.SUPABASE_URL       || process.env.VITE_SUPABASE_URL || "";
+  const secret = process.env.SUPABASE_SECRET_KEY || "";
+  if (!url || !secret) return null;
+  return createClient(url, secret);
+})();
+
+// ── Utility ───────────────────────────────────────────────────────────────────
+
+function extractUserId(req: Request): string | null {
+  // Extract from Authorization header: "Bearer <supabase_access_token>"
+  const auth = req.headers.authorization;
+  if (!auth?.startsWith("Bearer ")) return null;
+  try {
+    const payload = JSON.parse(
+      Buffer.from(auth.slice(7).split(".")[1], "base64").toString("utf8"),
+    );
+    return payload.sub ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// ── POST /api/identify ────────────────────────────────────────────────────────
+// Identify plant/organism from uploaded image via OpenRouter vision model
+
+router.post("/identify", upload.single("image"), async (req: Request, res: Response) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ error: 'No image provided' });
+      res.status(400).json({ error: "No image file provided in the request body" });
+      return;
     }
 
-    const language = (req.query.lang as string) || 'en';
-    const location = req.body.location
-      ? {
-          latitude: parseFloat(req.body.location.latitude),
-          longitude: parseFloat(req.body.location.longitude),
-        }
-      : undefined;
+    const language = (req.query.lang as string) || "en";
+    const context  = req.body.context || "";
 
-    const context = req.body.context || '';
+    let location: { latitude: number; longitude: number } | undefined;
+    if (req.body.location) {
+      try {
+        location = JSON.parse(req.body.location);
+      } catch {
+        // malformed location string — proceed without it
+      }
+    }
 
     const result = await aiService.identifyPlant({
       imageBuffer: req.file.buffer,
       language,
-      location,
       context,
+      location,
     });
 
-    // Enrich with GBIF taxonomy (free, no key)
-    if (result.scientificName && result.scientificName !== 'Unknown species') {
-      try {
-        const gbifRes = await fetch(
-          `https://api.gbif.org/v1/species/match?name=${encodeURIComponent(result.scientificName)}`,
-          { signal: AbortSignal.timeout(4000) }
-        );
-        if (gbifRes.ok) {
-          const g = await gbifRes.json() as any;
-          if (g.matchType !== 'NONE') {
+    // Enrich with GBIF taxonomy (non-blocking)
+    if (result.scientificName && result.scientificName !== "Unknown species") {
+      fetch(
+        `https://api.gbif.org/v1/species/match?name=${encodeURIComponent(result.scientificName)}`,
+        { signal: AbortSignal.timeout(4000) },
+      )
+        .then(r => r.json())
+        .then((g: any) => {
+          if (g.matchType !== "NONE") {
             (result as any).gbif = {
               usageKey: g.usageKey,
-              kingdom: g.kingdom,
-              family: g.family,
+              kingdom:  g.kingdom,
+              family:   g.family,
               confidence: g.confidence,
-              status: g.status,
+              status:   g.status,
             };
           }
-        }
-      } catch { /* GBIF optional */ }
+        })
+        .catch(() => {}); // GBIF enrichment is optional
+    }
+
+    // Persist observation to Supabase (non-blocking)
+    const userId = extractUserId(req);
+    if (supabaseAdmin) {
+      supabaseAdmin.from("observations").insert({
+        user_id:        userId,
+        scientific_name: result.scientificName,
+        common_name:    result.commonNames?.en ?? null,
+        scan_mode:      context.includes("mode:") ? context.split("mode:")[1]?.trim() : "plant",
+        confidence:     Math.round((result.confidence ?? 0) * 100),
+        risk_level:     result.riskLevel ?? "safe",
+        latitude:       location?.latitude ?? null,
+        longitude:      location?.longitude ?? null,
+        raw_result:     result,
+      }).then(({ error }) => {
+        if (error) console.error("[routes] observation persist failed:", error.message);
+      });
     }
 
     res.json(result);
-  } catch (error) {
-    console.error('[API] Identification error:', error);
-    res.status(500).json({ error: 'Failed to identify plant' });
+  } catch (err: any) {
+    console.error("[POST /identify]", err.message);
+    res.status(500).json({ error: "Identification failed", details: err.message });
   }
 });
 
-/**
- * POST /api/identify/batch
- * Identify multiple plants at once
- * Returns array of identification results
- */
-router.post('/identify/batch', upload.array('images'), async (req: Request, res: Response) => {
-  try {
-    if (!req.files || req.files.length === 0) {
-      return res.status(400).json({ error: 'No images provided' });
-    }
+// ── POST /api/identify/inat ───────────────────────────────────────────────────
+// Secondary identification via iNaturalist Computer Vision (free, no key)
 
-    const language = (req.query.lang as string) || 'en';
-    const location = req.body.location;
-
-    const results = await Promise.all(
-      (req.files as Express.Multer.File[]).map((file) =>
-        aiService.identifyPlant({
-          imageBuffer: file.buffer,
-          language,
-          location,
-        })
-      )
-    );
-
-    res.json({ count: results.length, plants: results });
-  } catch (error) {
-    console.error('[API] Batch identification error:', error);
-    res.status(500).json({ error: 'Failed to identify plants' });
-  }
-});
-
-/**
- * POST /api/camera/start
- * Start camera stream for real-time identification
- */
-router.post('/camera/start', (req: Request, res: Response) => {
-  try {
-    const quality = req.body.quality || 'medium';
-    const fps = req.body.fps || 15;
-
-    cameraService.startStream({ quality: quality as any, fps });
-
-    res.json({
-      status: 'started',
-      config: {
-        quality,
-        fps,
-        width: 640,
-        height: 480,
-      },
-    });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to start camera' });
-  }
-});
-
-/**
- * POST /api/camera/stop
- * Stop camera stream
- */
-router.post('/camera/stop', (req: Request, res: Response) => {
-  cameraService.stopStream();
-  res.json({ status: 'stopped' });
-});
-
-/**
- * POST /api/camera/capture
- * Capture single frame and identify plant
- */
-router.post('/camera/capture', upload.single('frame'), async (req: Request, res: Response) => {
+router.post("/identify/inat", upload.single("image"), async (req: Request, res: Response) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ error: 'No frame data' });
+      res.status(400).json({ error: "No image file provided" });
+      return;
     }
 
-    const language = (req.query.lang as string) || 'en';
-    const location = req.body.location;
+    const form = new FormData();
+    form.append(
+      "image",
+      new Blob([req.file.buffer], { type: req.file.mimetype }),
+      req.file.originalname || "image.jpg",
+    );
 
-    // Capture and process frame
-    const frame = await cameraService.captureFrame();
-
-    // Identify plant
-    const result = await aiService.identifyPlant({
-      imageBuffer: req.file.buffer,
-      language,
-      location,
-    });
-
-    res.json({
-      frame: {
-        timestamp: frame.timestamp,
-        metadata: frame.metadata,
-      },
-      plant: result,
-    });
-  } catch (error) {
-    console.error('[API] Capture error:', error);
-    res.status(500).json({ error: 'Failed to capture and identify' });
-  }
-});
-
-/**
- * GET /api/camera/stats
- * Get camera stream statistics
- */
-router.get('/camera/stats', (req: Request, res: Response) => {
-  const stats = cameraService.getStats();
-  res.json(stats);
-});
-
-/**
- * POST /api/translate
- * Translate plant information to different language
- * Uses AirLLM for accurate botanical terminology
- */
-router.post('/translate', async (req: Request, res: Response) => {
-  try {
-    const { scientificName, commonName, targetLanguage } = req.body;
-
-    if (!scientificName || !targetLanguage) {
-      return res.status(400).json({ error: 'Missing required fields' });
-    }
-
-    // Use AirLLM to translate botanical information
-    const prompt = `Translate the plant information to ${targetLanguage}:
-Scientific Name: ${scientificName}
-Common Name: ${commonName}
-Return JSON with "scientificName" and "commonName" in ${targetLanguage}`;
-
-    // Note: In production, call AirLLM via the aiService
-    res.json({
-      scientificName,
-      commonName,
-      targetLanguage,
-      translated: 'Translation service coming soon',
-    });
-  } catch (error) {
-    res.status(500).json({ error: 'Translation failed' });
-  }
-});
-
-/**
- * POST /api/bioscan/sync
- * Sync plant identification with BioScan geolocation data
- * Creates biodiversity records with location
- */
-router.post('/bioscan/sync', async (req: Request, res: Response) => {
-  try {
-    const { plantIdentification, location, userId } = req.body;
-
-    if (!plantIdentification || !location) {
-      return res.status(400).json({ error: 'Missing plant or location data' });
-    }
-
-    // Create biodiversity record
-    const record = {
-      id: `bioscan_${Date.now()}`,
-      userId,
-      plant: {
-        scientificName: plantIdentification.scientificName,
-        commonNames: plantIdentification.commonNames,
-        confidence: plantIdentification.confidence,
-      },
-      location: {
-        latitude: location.latitude,
-        longitude: location.longitude,
-        timestamp: new Date().toISOString(),
-      },
-      mapData: {
-        type: 'Point',
-        coordinates: [location.longitude, location.latitude],
-      },
-    };
-
-    // In production, save to database and broadcast to BioScan
-    console.log('[BioScan] New species record:', record);
-
-    res.json({
-      status: 'synced',
-      record,
-      message: 'Plant identification synced with BioScan',
-    });
-  } catch (error) {
-    console.error('[API] BioScan sync error:', error);
-    res.status(500).json({ error: 'Failed to sync with BioScan' });
-  }
-});
-
-/**
- * GET /api/species/:scientificName
- * Get detailed information about a plant species
- * Multi-language support
- */
-router.get('/species/:scientificName', async (req: Request, res: Response) => {
-  try {
-    const { scientificName } = req.params;
-    const language = (req.query.lang as string) || 'en';
-
-    // Return cached or generated species information
-    const speciesInfo = {
-      scientificName,
-      description: `Detailed information about ${scientificName}`,
-      careInstructions: 'Available in multiple languages',
-      language,
-      availableLanguages: [
-        'en', 'es', 'fr', 'de', 'ja', 'zh', 'pt', 'it', 'nl', 'ko',
-        'ar', 'hi', 'ru', 'vi', 'th', 'id', 'ms', 'tl', 'bn', 'sw',
-      ],
-    };
-
-    res.json(speciesInfo);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch species information' });
-  }
-});
-
-/**
- * POST /api/health
- * Health check endpoint
- */
-router.post('/health', (req: Request, res: Response) => {
-  res.json({
-    status: 'ok',
-    aiService: 'ready',
-    camera: 'ready',
-    timestamp: new Date().toISOString(),
-  });
-});
-
-/**
- * POST /api/identify/inat
- * Secondary identification via iNaturalist Computer Vision (free, no key)
- */
-router.post('/identify/inat', upload.single('image'), async (req: Request, res: Response) => {
-  try {
-    if (!req.file) return res.status(400).json({ error: 'No image provided' });
-
-    const formData = new FormData();
-    const blob = new Blob([req.file.buffer], { type: req.file.mimetype });
-    formData.append('image', blob, req.file.originalname || 'image.jpg');
-
-    const lat = req.body.lat;
-    const lng = req.body.lng;
-    const url = new URL('https://api.inaturalist.org/v1/computervision/score_image');
-    if (lat && lng) { url.searchParams.set('lat', lat); url.searchParams.set('lng', lng); }
+    const url = new URL("https://api.inaturalist.org/v1/computervision/score_image");
+    const lat  = req.body.lat as string | undefined;
+    const lng  = req.body.lng as string | undefined;
+    if (lat && lng) { url.searchParams.set("lat", lat); url.searchParams.set("lng", lng); }
 
     const response = await fetch(url.toString(), {
-      method: 'POST',
-      body: formData,
-      signal: AbortSignal.timeout(15000),
+      method: "POST",
+      body:   form,
+      signal: AbortSignal.timeout(18_000),
     });
 
-    if (!response.ok) throw new Error(`iNaturalist CV error ${response.status}`);
-    const data = await response.json() as any;
+    if (!response.ok) {
+      throw new Error(`iNaturalist CV returned HTTP ${response.status}`);
+    }
 
-    const results = (data.results || []).slice(0, 5).map((r: any) => ({
-      score: r.combined_score || r.vision_score,
+    const data = await response.json() as any;
+    const results = (data.results ?? []).slice(0, 5).map((r: any) => ({
+      score:  r.combined_score ?? r.vision_score ?? 0,
       taxon: {
-        id: r.taxon?.id,
-        name: r.taxon?.name,
-        commonName: r.taxon?.preferred_common_name,
-        rank: r.taxon?.rank,
-        iconicTaxon: r.taxon?.iconic_taxon_name,
-        photoUrl: r.taxon?.default_photo?.square_url,
-        wikipediaUrl: r.taxon?.wikipedia_url,
+        id:              r.taxon?.id,
+        name:            r.taxon?.name,
+        commonName:      r.taxon?.preferred_common_name,
+        rank:            r.taxon?.rank,
+        iconicTaxon:     r.taxon?.iconic_taxon_name,
+        photoUrl:        r.taxon?.default_photo?.square_url,
+        wikipediaUrl:    r.taxon?.wikipedia_url,
         observationsCount: r.taxon?.observations_count,
       },
     }));
 
-    res.json({ results, source: 'iNaturalist Computer Vision' });
-  } catch (error: any) {
-    console.error('[iNat CV]', error.message);
-    res.status(500).json({ error: 'iNaturalist CV unavailable', results: [] });
+    res.json({ results, source: "iNaturalist Computer Vision" });
+  } catch (err: any) {
+    console.error("[POST /identify/inat]", err.message);
+    res.status(500).json({ error: "iNaturalist CV unavailable", results: [] });
   }
 });
 
-/**
- * GET /api/species/forage
- * Edible & useful wild plants from GBIF (free, no key)
- */
-router.get('/species/forage', async (req: Request, res: Response) => {
-  try {
-    const { lat, lng, radius = '50' } = req.query as any;
-    let url = 'https://api.gbif.org/v1/occurrence/search?hasCoordinate=true&hasGeospatialIssue=false&kingdom=Plantae&limit=200&occurrenceStatus=PRESENT';
-    if (lat && lng) url += `&decimalLatitude=${parseFloat(lat) - 2},${parseFloat(lat) + 2}&decimalLongitude=${parseFloat(lng) - 2},${parseFloat(lng) + 2}`;
-    const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
-    if (!r.ok) throw new Error('GBIF error');
-    const data = await r.json() as any;
-    res.json({ results: data.results || [], count: data.count });
-  } catch (e: any) {
-    res.status(500).json({ error: e.message, results: [] });
-  }
-});
+// ── POST /api/chat ────────────────────────────────────────────────────────────
+// Session-persistent AI chat via GeminiService (DB-backed history)
 
-/**
- * POST /api/chat
- * Real AI chat powered by Claude
- */
-router.post('/chat', async (req: Request, res: Response) => {
+router.post("/chat", async (req: Request, res: Response) => {
   try {
-    const { message, history = [] } = req.body;
+    const { message, sessionId = "new" } = req.body as {
+      message?: string;
+      sessionId?: string;
+    };
 
-    if (!message) {
-      return res.status(400).json({ error: 'No message provided' });
+    if (!message || typeof message !== "string" || message.trim() === "") {
+      res.status(400).json({ error: "message field is required and must be a non-empty string" });
+      return;
     }
 
-    const msgs = history.map((h: { role: string; text: string }) => ({
-      role: h.role === 'assistant' ? 'assistant' : 'user',
-      content: h.text,
-    }));
-    msgs.push({ role: 'user', content: message });
+    const userId = extractUserId(req);
 
-    const SYSTEM = `You are FloraIQ Assistant — a world-class expert in botany, zoology, ecology, survival skills, farming, and nature intelligence.
-You help users anywhere on Earth identify plants, animals, insects, mushrooms, and marine life.
-You give survival tips, edible plant guides, farm planning advice, and species information for every country and climate.
-Keep responses concise, helpful, and nature-focused. When the user mentions a location or currency, use that — otherwise use globally applicable information.
-Cover all climates: tropical, temperate, arid, arctic. All 400,000+ known species. Every continent.`;
-
-    let reply = '';
-    try {
-      reply = await geminiChat(msgs, SYSTEM);
-    } catch (geminiErr) {
-      console.warn('[Chat] Gemini failed, trying OpenRouter:', (geminiErr as Error).message);
-      reply = await openRouterChat(msgs, SYSTEM);
-    }
-    res.json({ reply });
-  } catch (error: any) {
-    console.error('[Chat] Error:', error.message);
-    res.status(500).json({ error: 'Chat unavailable: ' + error.message });
-  }
-});
-
-/**
- * POST /api/disease
- * Plant disease detection via HuggingFace free inference API
- * Model: linkanjarad/mobilenet_v2_1.0_224-plant-disease-identification (38 disease classes)
- * Fallback: gianlab/swin-tiny-patch4-window7-224-finetuned-plantdisease
- */
-router.post('/disease', upload.single('image'), async (req: Request, res: Response) => {
-  try {
-    if (!req.file) return res.status(400).json({ error: 'No image provided' });
-
-    const HF_KEY = process.env.HF_API_KEY || '';
-    const resized = req.file.buffer;
-
-    const headers: Record<string, string> = { 'Content-Type': 'application/octet-stream' };
-    if (HF_KEY) headers['Authorization'] = `Bearer ${HF_KEY}`;
-
-    const PRIMARY_MODEL   = 'linkanjarad/mobilenet_v2_1.0_224-plant-disease-identification';
-    const SECONDARY_MODEL = 'gianlab/swin-tiny-patch4-window7-224-finetuned-plantdisease';
-
-    async function callHF(model: string) {
-      const r = await fetch(`https://api-inference.huggingface.co/models/${model}`, {
-        method: 'POST', headers, body: resized, signal: AbortSignal.timeout(20000),
-      });
-      if (!r.ok) throw new Error(`HF ${r.status}`);
-      return await r.json() as any[];
-    }
-
-    let results: any[] = [];
-    try { results = await callHF(PRIMARY_MODEL); }
-    catch { results = await callHF(SECONDARY_MODEL); }
-
-    // Map raw labels to human-readable info
-    const mapped = (results || []).slice(0, 5).map((r: any) => {
-      const raw: string = r.label || '';
-      const score: number = Math.round((r.score || 0) * 100);
-      // Labels are like "Tomato___Late_blight" or "Apple___healthy"
-      const parts = raw.split('___');
-      const plant   = parts[0]?.replace(/_/g, ' ') || 'Unknown plant';
-      const disease = parts[1]?.replace(/_/g, ' ') || raw.replace(/_/g, ' ');
-      const healthy = disease.toLowerCase().includes('healthy');
-      return { plant, disease, healthy, score, raw };
+    const result = await geminiService.chat({
+      sessionId,
+      userId,
+      message: message.trim(),
     });
 
-    const top = mapped[0];
-    let advice = '';
-    if (top && !top.healthy) {
-      try {
-        advice = await geminiChat(
-          [{ role: 'user', content: `My ${top.plant} has ${top.disease}. Give 3 specific treatment steps and prevention tips. Keep it under 150 words.` }],
-          'You are a global plant disease expert. Give practical treatment steps applicable worldwide. Mention both organic and chemical options. Suggest the user check local availability.'
-        );
-      } catch { advice = 'Consult your local agricultural extension office for treatment options.'; }
+    res.json(result); // { reply: string, sessionId: string }
+  } catch (err) {
+    if (err instanceof SessionNotFoundError) {
+      res.status(404).json({ error: err.message });
+      return;
     }
-
-    res.json({ results: mapped, advice, model: PRIMARY_MODEL });
-  } catch (error: any) {
-    console.error('[Disease] Error:', error.message);
-    res.status(500).json({ error: 'Disease detection unavailable: ' + error.message, results: [] });
+    if (err instanceof GeminiServiceError) {
+      res.status(err.statusCode).json({ error: err.message, upstream: err.upstream });
+      return;
+    }
+    console.error("[POST /chat]", (err as Error).message);
+    res.status(500).json({ error: "Chat service unavailable" });
   }
 });
 
-/**
- * GET /api/weather/forecast
- * 7-day forecast via Open-Meteo (free, no API key)
- * Used by: Farm Assistant, Water Tracker, Planting Calendar
- * Query params: lat, lon
- */
-interface OpenMeteoDaily {
-  time: string[];
-  temperature_2m_max: number[];
-  temperature_2m_min: number[];
-  precipitation_sum: number[];
-  windspeed_10m_max: number[];
-  weathercode: number[];
-}
-interface OpenMeteoResponse {
-  daily: OpenMeteoDaily;
-  timezone: string;
-  latitude: number;
-  longitude: number;
-}
+// ── GET /api/chat/sessions ────────────────────────────────────────────────────
+// List all chat sessions for the authenticated user
 
-router.get('/weather/forecast', async (req: Request, res: Response): Promise<any> => {
-  const { lat, lon } = req.query;
-  if (!lat || !lon) return res.status(400).json({ error: 'lat and lon query params required' });
+router.get("/chat/sessions", async (req: Request, res: Response) => {
+  const userId = extractUserId(req);
+  if (!userId) { res.status(401).json({ error: "Authentication required" }); return; }
+  if (!supabaseAdmin) { res.json({ sessions: [] }); return; }
 
+  const { data, error } = await supabaseAdmin
+    .from("chat_sessions")
+    .select("id, title, created_at, updated_at")
+    .eq("user_id", userId)
+    .order("updated_at", { ascending: false })
+    .limit(50);
+
+  if (error) {
+    res.status(500).json({ error: "Failed to fetch sessions", details: error.message });
+    return;
+  }
+
+  res.json({ sessions: data ?? [] });
+});
+
+// ── GET /api/chat/sessions/:id/messages ──────────────────────────────────────
+// Fetch all messages for a specific session
+
+router.get("/chat/sessions/:id/messages", async (req: Request, res: Response) => {
+  const userId    = extractUserId(req);
+  const sessionId = req.params.id;
+
+  if (!supabaseAdmin) { res.json({ messages: [] }); return; }
+
+  const { data, error } = await supabaseAdmin
+    .from("chat_messages")
+    .select("id, role, content, created_at")
+    .eq("session_id", sessionId)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    res.status(500).json({ error: "Failed to fetch messages", details: error.message });
+    return;
+  }
+
+  res.json({ messages: data ?? [], sessionId });
+});
+
+// ── POST /api/disease ─────────────────────────────────────────────────────────
+// Plant disease detection via DiseaseService → HuggingFace MobileNet
+
+router.post("/disease", upload.single("image"), async (req: Request, res: Response) => {
   try {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
-      `&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,weathercode` +
-      `&timezone=auto&forecast_days=7`;
+    if (!req.file) {
+      res.status(400).json({ error: "No image file provided" });
+      return;
+    }
 
-    const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
-    if (!response.ok) throw new Error(`Open-Meteo returned ${response.status}`);
+    const result = await diseaseService.analyse(req.file.buffer);
+    res.json(result);
+  } catch (err) {
+    if (err instanceof InvalidPayloadError) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
+    if (err instanceof DiseaseServiceError) {
+      res.status(err.statusCode).json({ error: err.message, model: err.model });
+      return;
+    }
+    console.error("[POST /disease]", (err as Error).message);
+    res.status(500).json({ error: "Disease analysis unavailable" });
+  }
+});
 
-    const data = (await response.json()) as OpenMeteoResponse;
-    const d    = data.daily;
+// ── GET /api/species/forage ───────────────────────────────────────────────────
+// Edible and medicinal wild plants from GBIF (free, no API key required)
 
-    // Weather code → human label (WMO codes)
+router.get("/species/forage", async (req: Request, res: Response) => {
+  try {
+    const { lat, lng } = req.query as { lat?: string; lng?: string };
+
+    let url = "https://api.gbif.org/v1/occurrence/search"
+      + "?hasCoordinate=true&hasGeospatialIssue=false&kingdom=Plantae"
+      + "&limit=200&occurrenceStatus=PRESENT";
+
+    if (lat && lng) {
+      const latF = parseFloat(lat);
+      const lngF = parseFloat(lng);
+      url += `&decimalLatitude=${latF - 2},${latF + 2}&decimalLongitude=${lngF - 2},${lngF + 2}`;
+    }
+
+    const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+    if (!response.ok) throw new Error(`GBIF returned HTTP ${response.status}`);
+
+    const data = await response.json() as any;
+    res.json({ results: data.results ?? [], count: data.count ?? 0 });
+  } catch (err: any) {
+    console.error("[GET /species/forage]", err.message);
+    res.status(500).json({ error: "GBIF data unavailable", results: [] });
+  }
+});
+
+// ── POST /api/bioscan/sync ────────────────────────────────────────────────────
+// Record a geolocated species observation from BioScan mobile
+
+router.post("/bioscan/sync", async (req: Request, res: Response) => {
+  try {
+    const { plantIdentification, location } = req.body as {
+      plantIdentification?: { scientificName: string; commonNames?: Record<string, string>; confidence?: number };
+      location?: { latitude: number; longitude: number };
+    };
+
+    if (!plantIdentification?.scientificName) {
+      res.status(400).json({ error: "plantIdentification.scientificName is required" });
+      return;
+    }
+    if (!location?.latitude || !location?.longitude) {
+      res.status(400).json({ error: "location.latitude and location.longitude are required" });
+      return;
+    }
+
+    const userId = extractUserId(req);
+    const record = {
+      id:         `bioscan_${Date.now()}`,
+      userId,
+      scientific: plantIdentification.scientificName,
+      common:     plantIdentification.commonNames?.en ?? null,
+      confidence: plantIdentification.confidence ?? null,
+      latitude:   location.latitude,
+      longitude:  location.longitude,
+      syncedAt:   new Date().toISOString(),
+    };
+
+    if (supabaseAdmin) {
+      await supabaseAdmin.from("observations").insert({
+        user_id:        userId,
+        scientific_name: record.scientific,
+        common_name:    record.common,
+        scan_mode:      "bioscan",
+        confidence:     record.confidence ? Math.round(record.confidence * 100) : null,
+        latitude:       record.latitude,
+        longitude:      record.longitude,
+      });
+    }
+
+    res.json({ status: "synced", record });
+  } catch (err: any) {
+    console.error("[POST /bioscan/sync]", err.message);
+    res.status(500).json({ error: "BioScan sync failed", details: err.message });
+  }
+});
+
+// ── GET /api/weather/forecast ─────────────────────────────────────────────────
+// 7-day agronomic forecast via Open-Meteo (no API key required)
+
+router.get("/weather/forecast", async (req: Request, res: Response) => {
+  try {
+    const { lat, lon } = req.query as { lat?: string; lon?: string };
+    if (!lat || !lon) {
+      res.status(400).json({ error: "lat and lon query parameters are required" });
+      return;
+    }
+
+    const url = "https://api.open-meteo.com/v1/forecast"
+      + `?latitude=${lat}&longitude=${lon}`
+      + "&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,weathercode"
+      + "&timezone=auto&forecast_days=7";
+
+    const response = await fetch(url, { signal: AbortSignal.timeout(8_000) });
+    if (!response.ok) throw new Error(`Open-Meteo returned HTTP ${response.status}`);
+
+    const data = await response.json() as any;
+    const d    = data.daily as {
+      time: string[];
+      temperature_2m_max: number[];
+      temperature_2m_min: number[];
+      precipitation_sum: number[];
+      windspeed_10m_max: number[];
+      weathercode: number[];
+    };
+
     function weatherLabel(code: number): string {
-      if (code === 0)            return "Clear sky";
-      if (code <= 3)             return "Partly cloudy";
-      if (code <= 49)            return "Foggy";
-      if (code <= 59)            return "Drizzle";
-      if (code <= 69)            return "Rain";
-      if (code <= 79)            return "Snow";
-      if (code <= 82)            return "Rain showers";
-      if (code <= 84)            return "Snow showers";
-      if (code <= 99)            return "Thunderstorm";
+      if (code === 0)  return "Clear sky";
+      if (code <= 3)   return "Partly cloudy";
+      if (code <= 49)  return "Foggy";
+      if (code <= 59)  return "Drizzle";
+      if (code <= 69)  return "Rain";
+      if (code <= 79)  return "Snow";
+      if (code <= 82)  return "Rain showers";
+      if (code <= 84)  return "Snow showers";
+      if (code <= 99)  return "Thunderstorm";
       return "Unknown";
     }
 
-    // Agronomic advice based on conditions
-    function farmAdvice(maxTemp: number, rain: number, wind: number): string {
-      if (maxTemp > 35)  return "High heat — water in early morning, shade seedlings";
-      if (rain > 20)     return "Heavy rain forecast — hold irrigation, check drainage";
-      if (rain > 10)     return "Good soil moisture — reduce watering schedule";
-      if (wind > 40)     return "Strong winds — stake tall crops, delay spraying";
-      if (maxTemp < 10)  return "Cold temperatures — cover frost-sensitive crops";
-      return "Conditions normal — standard care applies";
+    function farmAdvice(maxC: number, rainMm: number, windKmh: number): string {
+      if (maxC > 35)    return "Extreme heat — water at dawn, shade young seedlings";
+      if (rainMm > 20)  return "Heavy rain — pause irrigation, monitor drainage";
+      if (rainMm > 10)  return "Good moisture — reduce watering frequency";
+      if (windKmh > 40) return "Strong winds — stake tall crops, delay foliar sprays";
+      if (maxC < 10)    return "Cold conditions — protect frost-sensitive crops overnight";
+      return "Conditions optimal — follow standard care schedule";
     }
 
     const timeline = d.time.map((date, i) => ({
       date,
-      maxTempC:       d.temperature_2m_max[i],
-      minTempC:       d.temperature_2m_min[i],
+      maxTempC:        d.temperature_2m_max[i],
+      minTempC:        d.temperature_2m_min[i],
       precipitationMm: d.precipitation_sum[i],
-      windKmh:        d.windspeed_10m_max[i],
-      condition:      weatherLabel(d.weathercode[i]),
-      farmAdvice:     farmAdvice(d.temperature_2m_max[i], d.precipitation_sum[i], d.windspeed_10m_max[i]),
+      windKmh:         d.windspeed_10m_max[i],
+      condition:       weatherLabel(d.weathercode[i]),
+      farmAdvice:      farmAdvice(d.temperature_2m_max[i], d.precipitation_sum[i], d.windspeed_10m_max[i]),
     }));
 
     res.json({
-      meta: { latitude: data.latitude, longitude: data.longitude, timezone: data.timezone },
+      meta:     { latitude: data.latitude, longitude: data.longitude, timezone: data.timezone },
       timeline,
     });
   } catch (err: any) {
-    console.error('[Weather]', err.message);
-    res.status(500).json({ error: 'Weather forecast unavailable', details: err.message });
+    console.error("[GET /weather/forecast]", err.message);
+    res.status(500).json({ error: "Weather forecast unavailable", details: err.message });
   }
+});
+
+// ── GET /api/health ───────────────────────────────────────────────────────────
+
+router.get("/health", (_req: Request, res: Response) => {
+  res.json({
+    status:    "ok",
+    services: {
+      gemini:    !!process.env.GEMINI_API_KEY,
+      openrouter: !!process.env.OPENROUTER_API_KEY,
+      supabase:  !!supabaseAdmin,
+      huggingface: !!process.env.HF_API_KEY,
+    },
+    timestamp: new Date().toISOString(),
+  });
 });
 
 export default router;
