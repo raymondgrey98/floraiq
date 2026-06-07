@@ -37,20 +37,58 @@ export default function Chatbot() {
     const msg = (text ?? input).trim();
     if (!msg || loading) return;
 
+    const history = messages.map(m => ({ role: m.role, text: m.text }));
     setMessages(p => [...p, { id: Date.now().toString(), role: "user", text: msg, timestamp: new Date() }]);
     setInput("");
     setLoading(true);
 
     try {
-      const res  = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: msg, history: messages.map(m => ({ role: m.role, text: m.text })) }),
-      });
-      const data = await res.json();
-      setMessages(p => [...p, { id: (Date.now()+1).toString(), role: "assistant", text: data.reply || data.error || "Something went wrong.", timestamp: new Date() }]);
-    } catch {
-      setMessages(p => [...p, { id: (Date.now()+1).toString(), role: "assistant", text: "Could not reach server. Make sure the backend is running.", timestamp: new Date() }]);
+      // Try backend first; fall back to Gemini directly if server is offline
+      let reply = "";
+
+      try {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: msg, history }),
+          signal: AbortSignal.timeout(6000),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          reply = data.reply || "";
+        }
+      } catch { /* backend offline — fall through to direct Gemini */ }
+
+      if (!reply) {
+        const key = import.meta.env.VITE_GEMINI_API_KEY;
+        if (!key) throw new Error("No AI key configured");
+
+        const systemPrompt = "You are FloraIQ, an expert nature intelligence assistant. You specialise in plants, animals, birds, insects, fungi, marine life, farming, foraging, survival skills, and ecology. Answer clearly and helpfully. Keep replies concise unless detail is needed.";
+
+        const geminiHistory = history.map(m => ({
+          role: m.role === "assistant" ? "model" : "user",
+          parts: [{ text: m.text }],
+        }));
+
+        const geminiRes = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              system_instruction: { parts: [{ text: systemPrompt }] },
+              contents: [...geminiHistory, { role: "user", parts: [{ text: msg }] }],
+              generationConfig: { temperature: 0.7, maxOutputTokens: 800 },
+            }),
+          }
+        );
+        const geminiData = await geminiRes.json();
+        reply = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || "I couldn't get a response. Try again.";
+      }
+
+      setMessages(p => [...p, { id: (Date.now()+1).toString(), role: "assistant", text: reply, timestamp: new Date() }]);
+    } catch (e: any) {
+      setMessages(p => [...p, { id: (Date.now()+1).toString(), role: "assistant", text: "Something went wrong. Please try again.", timestamp: new Date() }]);
     } finally {
       setLoading(false);
     }

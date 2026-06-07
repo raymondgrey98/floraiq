@@ -121,15 +121,19 @@ export default function SpeciesMap() {
     setTotalCount(0);
 
     try {
+      // Random offset so results cycle through all continents globally, not just Europe
+      const offset = q?.trim() ? 0 : Math.floor(Math.random() * 500);
       const params = new URLSearchParams({
         limit: "300",
+        offset: String(offset),
         hasCoordinate: "true",
         hasGeospatialIssue: "false",
         occurrenceStatus: "PRESENT",
       });
 
       if (q?.trim()) {
-        params.set("scientificName", q);
+        // Use generic text search so "rose" matches any language/region globally
+        params.set("q", q.trim());
       } else if (cat !== "all") {
         if (cat === "plant")    params.set("kingdomKey", "6");
         else if (cat === "mushroom") params.set("kingdomKey", "5");
