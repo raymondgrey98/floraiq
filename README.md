@@ -1,61 +1,40 @@
 # FloraIQ
 
-Point your camera at anything living — plant, insect, bird, mushroom — and know what it is in seconds. Built for the whole world, not just one country.
+Nature identification app. Point camera at any plant, insect, bird, or mushroom — get an ID in seconds. Built on top of Gemini vision + GBIF data.
 
-![hero](https://images.unsplash.com/photo-1448375240586-882707db888b?w=1200&q=80)
-
----
-
-## What it does
-
-FloraIQ identifies species using AI vision, gives you care guides, disease diagnosis, a foraging map, and a full farm management toolkit. Think PictureThis but with more tools and no paywall.
-
-Works on web and Android (via Capacitor).
-
----
-
-## Features
-
-- **Species ID** — plants, insects, birds, fungi, marine life, reptiles from a photo
-- **Disease diagnosis** — detects 38 plant disease classes with treatment advice
-- **Forage map** — finds edible and medicinal wild plants near your location
-- **Farm assistant** — crop planning, pest control, market prices, irrigation, soil guides
-- **Species map** — live sightings from GBIF on an interactive map
-- **Water tracker** — watering schedules with overdue alerts
-- **Plant journal** — track your garden over time
-- **Wilderness toolkit** — edible, toxic, and medicinal plant guides for survival
-- **70+ tools** — moon calendar, companion planting, bonsai, beekeeping, and more
+Web app + Android APK (Capacitor).
 
 ---
 
 ## Stack
 
-- **Frontend** — React 19, TypeScript, Vite 7, Tailwind CSS v4
-- **UI** — Radix UI / shadcn, Framer Motion, Phosphor Icons, GSAP
-- **Backend** — Express.js, Gemini API, OpenRouter
-- **Maps** — Leaflet, GBIF, iNaturalist
-- **Auth + DB** — Supabase (optional)
-- **Mobile** — Capacitor v8 (Android APK)
+React 19 / TypeScript / Vite / Tailwind v4 on the frontend. Express backend calling Gemini and OpenRouter. Leaflet maps with live GBIF occurrence data. Supabase for auth and chat history (optional). Capacitor wraps it into an Android APK.
 
----
+## What's in it
 
-## Running locally
+- Camera-based species identification (plants, insects, birds, fungi, marine, reptiles)
+- Plant disease detection via HuggingFace MobileNet (38 classes)
+- Foraging map — edible/medicinal wild plants near you using GBIF
+- Farm assistant with 13 tabs (irrigation, market prices, crop planning, etc.)
+- Water tracker, plant journal, species map, wilderness survival guides
+- AI chat (Gemini primary, OpenRouter fallback) with persistent session history
+- 70+ tools across botany, zoology, farming, foraging
+
+## Running it
 
 ```bash
 pnpm install
 pnpm dev
 ```
 
-Frontend runs on `localhost:3000`, backend on `localhost:7171`.
-
-**Required `.env`:**
+Needs a `.env` in the root:
 
 ```env
 OPENROUTER_API_KEY=
 GEMINI_API_KEY=
 ```
 
-**Optional (for auth and persistent chat):**
+Supabase is optional — without it, chat history is ephemeral and auth is disabled:
 
 ```env
 SUPABASE_URL=
@@ -64,9 +43,7 @@ VITE_SUPABASE_URL=
 VITE_SUPABASE_PUBLISHABLE_KEY=
 ```
 
----
-
-## Android build
+## Android
 
 ```bash
 pnpm build
@@ -74,28 +51,19 @@ npx cap sync android
 npx cap open android
 ```
 
----
-
-## Project layout
+## Structure
 
 ```text
 client/src/
-  pages/       50+ route components
-  components/  WaveOrb, ScanOverlay, Chatbot, BottomNav, etc.
-  context/     WorkstationContext (auth + scan state)
+  pages/       all route views
+  components/  WaveOrb, ScanOverlay, Chatbot, BottomNav
+  context/     WorkstationContext
 
 server/
-  routes.ts         API endpoints
-  services/
-    gemini.service.ts   Gemini chat + vision
-    disease.service.ts  HuggingFace plant disease
+  services/    gemini.service.ts, disease.service.ts
+  routes.ts    all API endpoints
 
-supabase/
-  migrations/   SQL schema for chat sessions + observations
+supabase/migrations/   DB schema (run once in Supabase SQL editor)
 ```
-
----
-
-## License
 
 MIT
