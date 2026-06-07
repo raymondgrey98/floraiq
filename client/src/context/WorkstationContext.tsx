@@ -1,8 +1,13 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { createClient, type User, type Session } from "@supabase/supabase-js";
 
-const SUPABASE_URL      = (import.meta.env.VITE_SUPABASE_URL      as string) || "";
-const SUPABASE_ANON_KEY = (import.meta.env.VITE_SUPABASE_ANON_KEY as string) || "";
+const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL as string) || "";
+// Supports both new publishable key format (sb_publishable_...) and legacy anon key
+const SUPABASE_ANON_KEY = (
+  (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string) ||
+  (import.meta.env.VITE_SUPABASE_ANON_KEY        as string) ||
+  ""
+);
 
 // Export so Login/Signup/Profile can call auth methods directly
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
