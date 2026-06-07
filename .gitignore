@@ -1,12 +1,48 @@
+# Dependencies
 node_modules/
+*.pnp
+.pnp.js
+
+# Testing
+coverage/
+
+# Production
 dist/
+build/
+
+# Misc
 .env
 .env.local
-.manus-logs/
-android/
-*.apk
-*.log
+.env.*.local
 .DS_Store
-Thumbs.db
-.project-config.json
-CLAUDE.md
+*.pem
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Editor directories and files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Vite
+.vite/
+
+# Supabase
+supabase/.branches/
+supabase/.temp/
+
+# Capacitor
+capacitor.config.ts
+.capacitor/
+ios/
+android/
