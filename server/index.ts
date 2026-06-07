@@ -4,6 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import cors from "cors";
 import plantRoutes from "./routes.js";
+import { mcpRouter } from "./mcp-server.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -28,12 +29,19 @@ async function startServer() {
 
   app.use(express.static(staticPath));
   app.use("/api", plantRoutes);
+  app.use("/mcp", mcpRouter); // MCP server — callable by Claude Code, mcporter, and other agents
 
   app.get("/api/health", (req, res) => {
     res.json({
       status: "ok",
       version: "2.0.0",
-      services: { ai: "OpenRouter (Gemma 4 31B)", vision: "OpenRouter Vision", languages: 25 },
+      services: {
+        ai:         "OpenRouter (Gemma 4 31B)",
+        vision:     "OpenRouter Vision",
+        languages:  25,
+        image:      "rastermill (Photon + native fallbacks)",
+        mcp:        "mcporter-compatible MCP server at /mcp",
+      },
       timestamp: new Date().toISOString(),
     });
   });

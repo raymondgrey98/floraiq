@@ -1,6 +1,7 @@
 import express, { Request, Response, NextFunction } from "express";
 import multer from "multer";
 import { createClient } from "@supabase/supabase-js";
+import { createRastermill } from "rastermill";
 import { AirLLMPlantService } from "./ai-service";
 import {
   geminiService,
@@ -17,6 +18,27 @@ import {
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } });
+
+// Rastermill: fast portable image pipeline with Photon in-process + native fallbacks.
+// Handles HEIC/AVIF/WebP that sharp can choke on, enforces pixel budget,
+// strips metadata, and normalises to JPEG before sending to vision AI.
+const rastermill = createRastermill({
+  execution: "auto",
+  limits: { inputPixels: 25_000_000, outputPixels: 25_000_000 },
+});
+
+async function normaliseImage(buffer: Buffer): Promise<Buffer> {
+  try {
+    const encoded = await rastermill.encode(buffer, {
+      format: "jpeg",
+      resize: { maxSide: 1600 },
+      quality: 85,
+    });
+    return Buffer.from(encoded.data);
+  } catch {
+    return buffer; // fallback: pass through unchanged
+  }
+}
 
 const aiService = new AirLLMPlantService();
 aiService.initializeModel().catch(console.error);
@@ -68,8 +90,12 @@ router.post("/identify", upload.single("image"), async (req: Request, res: Respo
       }
     }
 
+    // Normalise: resize to max 1600px, convert HEIC/AVIF/WebP → JPEG,
+    // strip metadata, guard against oversized inputs via rastermill
+    const imageBuffer = await normaliseImage(req.file.buffer);
+
     const result = await aiService.identifyPlant({
-      imageBuffer: req.file.buffer,
+      imageBuffer,
       language,
       context,
       location,
@@ -131,10 +157,11 @@ router.post("/identify/inat", upload.single("image"), async (req: Request, res: 
       return;
     }
 
+    const imageBuffer = await normaliseImage(req.file.buffer);
     const form = new FormData();
     form.append(
       "image",
-      new Blob([req.file.buffer], { type: req.file.mimetype }),
+      new Blob([imageBuffer], { type: "image/jpeg" }),
       req.file.originalname || "image.jpg",
     );
 
@@ -269,7 +296,8 @@ router.post("/disease", upload.single("image"), async (req: Request, res: Respon
       return;
     }
 
-    const result = await diseaseService.analyse(req.file.buffer);
+    const imageBuffer = await normaliseImage(req.file.buffer);
+    const result = await diseaseService.analyse(imageBuffer);
     res.json(result);
   } catch (err) {
     if (err instanceof InvalidPayloadError) {

@@ -1,0 +1,9 @@
+{
+  "servers": {
+    "floraiq": {
+      "type": "http",
+      "url": "http://localhost:7171/mcp",
+      "description": "FloraIQ nature intelligence — identify plants, animals, insects, fungi from photos; get care guides, toxicity info, species data"
+    }
+  }
+}
