@@ -8,10 +8,36 @@ gsap.registerPlugin(ScrollTrigger);
 import {
   MagnifyingGlass, Bell, Plus, ArrowRight, Leaf, Bug, Bird, Fish,
   Skull, Flower, Tree, Butterfly, Camera, Compass, Drop,
-  FirstAidKit, MapTrifold, Flask,
+  FirstAidKit, MapTrifold, Flask, Microphone,
 } from "@phosphor-icons/react";
 
 // ─── hooks ────────────────────────────────────────────────────────────────────
+function useWeather() {
+  const [weather, setWeather] = useState<{ temp: number; desc: string; icon: string; wind: number; humidity: number } | null>(null);
+  useEffect(() => {
+    navigator.geolocation.getCurrentPosition(async pos => {
+      try {
+        const { latitude: lat, longitude: lon } = pos.coords;
+        const res = await fetch(
+          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code&wind_speed_unit=kmh`
+        );
+        const data = await res.json();
+        const code = data.current.weather_code;
+        const desc = code <= 1 ? "Clear" : code <= 3 ? "Cloudy" : code <= 67 ? "Rainy" : code <= 77 ? "Snowy" : "Stormy";
+        const icon = code <= 1 ? "☀️" : code <= 3 ? "⛅" : code <= 67 ? "🌧️" : code <= 77 ? "❄️" : "⛈️";
+        setWeather({
+          temp: Math.round(data.current.temperature_2m),
+          desc,
+          icon,
+          wind: Math.round(data.current.wind_speed_10m),
+          humidity: data.current.relative_humidity_2m,
+        });
+      } catch {}
+    }, () => {}, { timeout: 4000 });
+  }, []);
+  return weather;
+}
+
 function useScans() {
   const [scans, setScans] = useState<any[]>([]);
   useEffect(() => {
@@ -55,6 +81,7 @@ const FEATURES = [
   { Icon: Compass,     label: "Survival Toolkit",   desc: "Wilderness: edible, toxic, useful", href: "/survival", img: "https://images.unsplash.com/photo-1448375240586-882707db888b?w=600&q=75", accent: "#fbbf24" },
   { Icon: FirstAidKit, label: "Species Map",        desc: "Live GBIF sightings worldwide",     href: "/map",      img: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=600&q=75", accent: "#38bdf8" },
   { Icon: Drop,        label: "Water Tracker",      desc: "Smart watering + overdue alerts",   href: "/water",    img: "https://images.unsplash.com/photo-1544785349-c4a5301826fd?w=600&q=75", accent: "#7dd3fc" },
+  { Icon: Microphone,  label: "Sound ID",           desc: "Identify birds & insects by sound", href: "/soundid",  img: "https://images.unsplash.com/photo-1444464666168-49d633b86797?w=600&q=75", accent: "#a78bfa" },
 ];
 
 const CARE_TIPS = [
@@ -143,7 +170,8 @@ const PATH_LEAF     = "M50,95 C20,80 5,55 8,30 C11,10 30,2 50,5 C70,2 89,10 92,3
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function Home() {
-  const scans = useScans();
+  const scans   = useScans();
+  const weather = useWeather();
   const [tip,  setTip]  = useState(0);
   const [hovCat, setHovCat] = useState<string | null>(null);
 
@@ -273,7 +301,21 @@ export default function Home() {
               border: "1px solid rgba(16,185,129,0.25)",
             }}>BETA</span>
           </div>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {weather && (
+              <div style={{
+                display: "flex", alignItems: "center", gap: 5,
+                padding: "4px 10px", borderRadius: 20,
+                background: "rgba(16,185,129,0.1)",
+                border: "1px solid rgba(16,185,129,0.2)",
+                fontSize: 12, color: "#34d399", fontWeight: 600,
+              }}>
+                <span>{weather.icon}</span>
+                <span>{weather.temp}°C</span>
+                <span style={{ color: "rgba(255,255,255,0.3)" }}>·</span>
+                <span style={{ color: "rgba(255,255,255,0.5)", fontWeight: 400 }}>{weather.desc}</span>
+              </div>
+            )}
             {[{ href: "/tools", Icon: MagnifyingGlass }, { href: "/profile", Icon: Bell }].map(({ href, Icon }) => (
               <Link key={href} href={href}>
                 <button type="button" style={{

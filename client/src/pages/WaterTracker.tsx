@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Droplets, Plus, Trash2, CheckCircle, Clock, AlertCircle, Leaf, ChevronLeft, Bell } from "lucide-react";
+import { Droplets, Plus, Trash2, CheckCircle, Clock, AlertCircle, Leaf, ChevronLeft, Bell, BellOff } from "lucide-react";
+import { requestNotificationPermission, scheduleWaterReminder, cancelNotification, sendImmediateNotification } from "@/lib/notifications";
 
 interface TrackedPlant {
   id: string;
@@ -40,10 +41,12 @@ const FREQ_PRESETS = [
 ];
 
 export default function WaterTracker() {
-  const [plants, setPlants]     = useState<TrackedPlant[]>([]);
-  const [showForm, setShowForm] = useState(false);
-  const [filter, setFilter]     = useState<"all" | "urgent" | "ok">("all");
-  const [form, setForm]         = useState({
+  const [plants, setPlants]         = useState<TrackedPlant[]>([]);
+  const [showForm, setShowForm]     = useState(false);
+  const [filter, setFilter]         = useState<"all" | "urgent" | "ok">("all");
+  const [notifEnabled, setNotifEnabled] = useState(false);
+  const [notifMsg, setNotifMsg]     = useState("");
+  const [form, setForm]             = useState({
     name: "", species: "", waterEveryDays: 3, notes: "", location: "",
   });
 
@@ -51,15 +54,37 @@ export default function WaterTracker() {
     try {
       const s = localStorage.getItem("floraiq_water_tracker");
       if (s) setPlants(JSON.parse(s));
+      const n = localStorage.getItem("floraiq_notif_enabled");
+      if (n === "true") setNotifEnabled(true);
     } catch {}
   }, []);
+
+  async function toggleNotifications() {
+    if (notifEnabled) {
+      setNotifEnabled(false);
+      localStorage.setItem("floraiq_notif_enabled", "false");
+      setNotifMsg("Reminders turned off.");
+      setTimeout(() => setNotifMsg(""), 2500);
+      return;
+    }
+    const granted = await requestNotificationPermission();
+    if (granted) {
+      setNotifEnabled(true);
+      localStorage.setItem("floraiq_notif_enabled", "true");
+      await sendImmediateNotification("FloraIQ Reminders ON 🌿", "You'll get watering alerts every morning.");
+      setNotifMsg("Reminders enabled! You'll be notified each morning.");
+    } else {
+      setNotifMsg("Permission denied. Enable notifications in Settings → Apps → FloraIQ.");
+    }
+    setTimeout(() => setNotifMsg(""), 4000);
+  }
 
   function save(list: TrackedPlant[]) {
     setPlants(list);
     localStorage.setItem("floraiq_water_tracker", JSON.stringify(list));
   }
 
-  function addPlant() {
+  async function addPlant() {
     if (!form.name.trim()) return;
     const p: TrackedPlant = {
       id: Date.now().toString(),
@@ -71,15 +96,33 @@ export default function WaterTracker() {
       location: form.location || undefined,
     };
     save([...plants, p]);
+    if (notifEnabled) {
+      await scheduleWaterReminder({
+        id: parseInt(p.id.slice(-6)),
+        plantName: p.name,
+        daysFromNow: p.waterEveryDays,
+      });
+    }
     setForm({ name: "", species: "", waterEveryDays: 3, notes: "", location: "" });
     setShowForm(false);
   }
 
-  function waterPlant(id: string) {
+  async function waterPlant(id: string) {
+    const plant = plants.find(p => p.id === id);
     save(plants.map(p => p.id === id ? { ...p, lastWatered: new Date().toISOString() } : p));
+    if (notifEnabled && plant) {
+      const notifId = parseInt(id.slice(-6));
+      await cancelNotification(notifId);
+      await scheduleWaterReminder({
+        id: notifId,
+        plantName: plant.name,
+        daysFromNow: plant.waterEveryDays,
+      });
+    }
   }
 
-  function deletePlant(id: string) {
+  async function deletePlant(id: string) {
+    await cancelNotification(parseInt(id.slice(-6)));
     save(plants.filter(p => p.id !== id));
   }
 
@@ -110,10 +153,16 @@ export default function WaterTracker() {
               </span>
             )}
           </div>
-          <Button type="button" onClick={() => setShowForm(true)} size="sm"
-            className="bg-blue-500 hover:bg-blue-600 text-white">
-            <Plus className="w-4 h-4 mr-1" />Add Plant
-          </Button>
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={toggleNotifications} title={notifEnabled ? "Disable reminders" : "Enable reminders"}
+              className={`p-2 rounded-full border transition-all ${notifEnabled ? "border-blue-400 bg-blue-500/20 text-blue-400" : "border-border text-muted-foreground hover:text-white"}`}>
+              {notifEnabled ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
+            </button>
+            <Button type="button" onClick={() => setShowForm(true)} size="sm"
+              className="bg-blue-500 hover:bg-blue-600 text-white">
+              <Plus className="w-4 h-4 mr-1" />Add Plant
+            </Button>
+          </div>
         </div>
 
         {/* Filter tabs */}
@@ -134,6 +183,11 @@ export default function WaterTracker() {
       </div>
 
       <div className="container py-6 max-w-3xl">
+        {notifMsg && (
+          <div className="mb-4 bg-blue-500/10 border border-blue-500/30 rounded-lg px-4 py-2 text-blue-300 text-sm text-center">
+            {notifMsg}
+          </div>
+        )}
         {/* Add plant form */}
         {showForm && (
           <div className="fixed inset-0 z-50 bg-black/70 flex items-end sm:items-center justify-center p-4"
