@@ -17,3 +17,5 @@ attached_assets/
 patches/
 electron/icon.ico
 electron/icon.png
+*.keystore
+*.jks
