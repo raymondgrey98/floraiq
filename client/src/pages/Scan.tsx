@@ -4,6 +4,17 @@ import { Leaf, Bug, Bird, Waves, AlertTriangle, Upload, Camera, X, Sprout, Snail
 import { Link, useLocation } from "wouter";
 import ScanOverlay, { type ScanStatus } from "@/components/ScanOverlay";
 
+// Capacitor camera — loaded dynamically so web build doesn't break
+async function getNativeCamera() {
+  try {
+    const { Camera, CameraResultType, CameraSource } = await import("@capacitor/camera");
+    const { Capacitor } = await import("@capacitor/core");
+    return { Camera, CameraResultType, CameraSource, Capacitor };
+  } catch {
+    return null;
+  }
+}
+
 const MODES = [
   { id: "plant",    label: "Plant / Herb",         icon: Leaf,          color: "from-green-500 to-emerald-600" },
   { id: "insect",   label: "Insect / Bug",          icon: Bug,           color: "from-yellow-500 to-orange-600" },
@@ -15,19 +26,25 @@ const MODES = [
 ];
 
 export default function Scan() {
-  const [, navigate]     = useLocation();
-  const [mode, setMode]  = useState("plant");
+  const [, navigate]       = useLocation();
+  const [mode, setMode]    = useState("plant");
   const [preview, setPreview] = useState<string | null>(null);
-  const [file, setFile]  = useState<File | null>(null);
+  const [file, setFile]    = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError]  = useState("");
   const [liveMode, setLiveMode] = useState(false);
   const [streamError, setStreamError] = useState("");
   const [scanStatus, setScanStatus] = useState<ScanStatus>("idle");
-  const inputRef  = useRef<HTMLInputElement>(null);
-  const cameraRef = useRef<HTMLInputElement>(null);
-  const videoRef  = useRef<HTMLVideoElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
+  const [isNative, setIsNative] = useState(false);
+  const inputRef   = useRef<HTMLInputElement>(null);
+  const videoRef   = useRef<HTMLVideoElement>(null);
+  const streamRef  = useRef<MediaStream | null>(null);
+
+  useEffect(() => {
+    getNativeCamera().then(cap => {
+      if (cap?.Capacitor.isNativePlatform()) setIsNative(true);
+    });
+  }, []);
 
   const stopStream = useCallback(() => {
     streamRef.current?.getTracks().forEach(t => t.stop());
@@ -36,8 +53,42 @@ export default function Scan() {
 
   useEffect(() => () => stopStream(), [stopStream]);
 
+  // Native Android camera — opens system camera app, no WebView permission issues
+  async function takePhotoNative(source: "camera" | "photos") {
+    setStreamError("");
+    const cap = await getNativeCamera();
+    if (!cap) return;
+    const { Camera, CameraResultType, CameraSource } = cap;
+
+    try {
+      await Camera.requestPermissions({ permissions: ["camera", "photos"] });
+      const photo = await Camera.getPhoto({
+        resultType: CameraResultType.DataUrl,
+        source: source === "camera" ? CameraSource.Camera : CameraSource.Photos,
+        quality: 90,
+        allowEditing: false,
+      });
+      if (!photo.dataUrl) return;
+      setPreview(photo.dataUrl);
+      // Convert dataUrl to File for upload
+      const res = await fetch(photo.dataUrl);
+      const blob = await res.blob();
+      setFile(new File([blob], "capture.jpg", { type: "image/jpeg" }));
+      setError("");
+    } catch (e: any) {
+      if (!e?.message?.includes("cancelled") && !e?.message?.includes("canceled")) {
+        setStreamError("Camera access denied. Go to Settings → Apps → FloraIQ → Permissions → Allow Camera.");
+      }
+    }
+  }
+
   async function startLive() {
     setStreamError("");
+    // On native Android use Capacitor Camera instead of getUserMedia
+    if (isNative) {
+      await takePhotoNative("camera");
+      return;
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
@@ -46,7 +97,7 @@ export default function Scan() {
       if (videoRef.current) videoRef.current.srcObject = stream;
       setLiveMode(true);
     } catch {
-      setStreamError("Camera access denied. Please allow camera permission.");
+      setStreamError("Camera access denied. Please allow camera permission in your browser.");
     }
   }
 
@@ -87,7 +138,6 @@ export default function Scan() {
     setError("");
 
     try {
-      // Get user location for better identification
       let location: { latitude: number; longitude: number } | undefined;
       try {
         const pos = await new Promise<GeolocationPosition>((res, rej) =>
@@ -109,8 +159,6 @@ export default function Scan() {
       }
 
       const result = await res.json();
-
-      // Attach scan metadata
       const scanEntry = {
         ...result,
         id: Date.now(),
@@ -120,10 +168,8 @@ export default function Scan() {
         timestamp: Date.now(),
       };
 
-      // Save as last scan
       localStorage.setItem("floraiq_last_scan", JSON.stringify(scanEntry));
 
-      // Append to history
       try {
         const history = JSON.parse(localStorage.getItem("floraiq_scan_history") || "[]");
         history.unshift({
@@ -151,7 +197,6 @@ export default function Scan() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* Header */}
       <div className="sticky top-0 z-40 glass border-b border-border">
         <div className="container flex items-center justify-between h-16">
           <div className="flex items-center gap-4">
@@ -185,14 +230,12 @@ export default function Scan() {
           </div>
         </div>
 
-        {/* Hidden file inputs */}
-        <input ref={inputRef}  type="file" accept="image/*" title="Upload image" aria-label="Upload image" className="hidden" onChange={handleFile} />
-        <input ref={cameraRef} type="file" accept="image/*" title="Take photo" aria-label="Take photo" className="hidden" onChange={handleFile} />
+        {/* File input — web/desktop only */}
+        <input ref={inputRef} type="file" accept="image/*" title="Upload image" aria-label="Upload image" className="hidden" onChange={handleFile} />
 
         {/* Upload zone */}
         <div className="max-w-2xl mx-auto mb-8">
           {liveMode ? (
-            /* ── Live camera viewfinder ── */
             <div className="glass rounded-xl border border-emerald-500/40 overflow-hidden">
               <div className="relative bg-black">
                 <video ref={videoRef} autoPlay playsInline muted
@@ -217,21 +260,31 @@ export default function Scan() {
             <div className="glass rounded-xl border-2 border-dashed border-emerald-500/30 p-12 text-center hover:border-emerald-500/60 transition-colors">
               <Camera className="w-16 h-16 text-emerald-500/40 mx-auto mb-4" />
               <h3 className="text-xl font-semibold mb-2">Upload or Capture</h3>
-              <p className="text-muted-foreground mb-6">Take a photo or use live camera to identify instantly</p>
-              {streamError && <p className="text-red-400 text-sm mb-4">{streamError}</p>}
+              <p className="text-muted-foreground mb-6">Take a photo or upload an image to identify instantly</p>
+              {streamError && (
+                <p className="text-red-400 text-sm mb-4 bg-red-500/10 border border-red-500/20 rounded-lg p-3">{streamError}</p>
+              )}
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <Button type="button" onClick={startLive}
+                {/* Camera button — native on Android, live on web */}
+                <Button type="button" onClick={isNative ? () => takePhotoNative("camera") : startLive}
                   className="bg-emerald-500 hover:bg-emerald-600 text-white hover-glow">
-                  <Video className="w-5 h-5 mr-2" />Live Camera
+                  <Camera className="w-5 h-5 mr-2" />
+                  {isNative ? "Take Photo" : "Live Camera"}
                 </Button>
-                <Button type="button" variant="outline" onClick={() => inputRef.current?.click()}
+                {/* Gallery/upload */}
+                <Button type="button" variant="outline"
+                  onClick={isNative ? () => takePhotoNative("photos") : () => inputRef.current?.click()}
                   className="border-emerald-500/30 text-emerald-400">
-                  <Upload className="w-5 h-5 mr-2" />Upload Photo
+                  <Upload className="w-5 h-5 mr-2" />
+                  {isNative ? "Choose from Gallery" : "Upload Photo"}
                 </Button>
-                <Button type="button" variant="outline" onClick={() => cameraRef.current?.click()}
-                  className="border-border/50 text-muted-foreground">
-                  <Camera className="w-5 h-5 mr-2" />Take Photo
-                </Button>
+                {/* Web-only: live camera when not native */}
+                {!isNative && (
+                  <Button type="button" variant="outline" onClick={startLive}
+                    className="border-border/50 text-muted-foreground">
+                    <Video className="w-5 h-5 mr-2" />Live Camera
+                  </Button>
+                )}
               </div>
             </div>
           ) : (
@@ -239,7 +292,8 @@ export default function Scan() {
               <div className="relative rounded-lg overflow-hidden">
                 <img src={preview} alt="Preview" className="w-full h-80 object-cover" />
                 <ScanOverlay status={scanStatus} />
-                <button type="button" aria-label="Remove image" title="Remove image" onClick={() => { setPreview(null); setFile(null); setError(""); }}
+                <button type="button" aria-label="Remove image" title="Remove image"
+                  onClick={() => { setPreview(null); setFile(null); setError(""); }}
                   className="absolute top-3 right-3 bg-black/60 hover:bg-black/80 rounded-full p-2 transition">
                   <X className="w-4 h-4 text-white" />
                 </button>
