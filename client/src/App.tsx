@@ -88,6 +88,7 @@ import FarmDashboard from "./pages/FarmDashboard";
 import LandMapper from "./pages/LandMapper";
 import DroneView from "./pages/DroneView";
 import SoundID from "./pages/SoundID";
+import SmartGuide from "./pages/SmartGuide";
 
 function Router() {
   return (
@@ -174,6 +175,7 @@ function Router() {
       <Route path={"/landmap"} component={LandMapper} />
       <Route path={"/droneview"} component={DroneView} />
       <Route path={"/soundid"} component={SoundID} />
+      <Route path={"/guide/:slug"} component={SmartGuide} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />
