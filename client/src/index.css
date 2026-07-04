@@ -1,13 +1,45 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   FloraIQ Design System — "Botanical Night"
+   ═══════════════════════════════════════════════════════════════════════════
+   A nature-derived token system. Every color is sampled from an organic
+   reference (forest canopy, new leaf, sunlight, river water, soil, bloom)
+   rather than a framework default palette. Values are shipped as hex for
+   older Android WebView compatibility; the OKLCH design intent is noted
+   inline so the palette can be regenerated consistently.
+
+   Full documentation: /DESIGN.md
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/fraunces";
 @import "tailwindcss";
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
+  /* ── Typography ─────────────────────────────────────────────────────────── */
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Fraunces Variable", ui-serif, Georgia, "Times New Roman", serif;
+
+  /* ── Radius scale ───────────────────────────────────────────────────────── */
+  --radius-sm: calc(var(--radius) - 6px);
+  --radius-md: calc(var(--radius) - 3px);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --radius-xl: calc(var(--radius) + 6px);
+  --radius-2xl: calc(var(--radius) + 12px);
+
+  /* ── Motion ─────────────────────────────────────────────────────────────── */
+  --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);     /* decisive, organic settle   */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);    /* hero entrances             */
+  --ease-in-out-soft: cubic-bezier(0.45, 0, 0.55, 1);/* looping ambient motion     */
+
+  /* ── Elevation (green-tinted ambient shadows) ───────────────────────────── */
+  --shadow-lift: 0 8px 24px -8px rgba(4, 12, 7, 0.55), 0 2px 8px -2px rgba(4, 12, 7, 0.4);
+  --shadow-float: 0 16px 48px -12px rgba(4, 12, 7, 0.65), 0 4px 16px -4px rgba(4, 12, 7, 0.45);
+  --shadow-glow: 0 0 24px rgba(85, 200, 119, 0.28), 0 0 64px rgba(85, 200, 119, 0.12);
+
+  /* ── Semantic slots (shadcn contract) ───────────────────────────────────── */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -40,87 +72,143 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  /* ── Extended botanical palette (usable as text-leaf, bg-water/10, …) ───── */
+  --color-leaf: var(--leaf);
+  --color-leaf-bright: var(--leaf-bright);
+  --color-canopy: var(--canopy);
+  --color-moss: var(--moss);
+  --color-lichen: var(--lichen);
+  --color-sunlight: var(--sunlight);
+  --color-water: var(--water);
+  --color-soil: var(--soil);
+  --color-bloom: var(--bloom);
+  --color-wilt: var(--wilt);
 }
 
 :root {
-  /* FloraIQ Dark Theme */
-  --primary: #22c55e; /* Emerald green */
-  --primary-foreground: #09090b;
-  --sidebar-primary: #22c55e;
-  --sidebar-primary-foreground: #09090b;
-  --chart-1: #22c55e;
-  --chart-2: #16a34a;
-  --chart-3: #15803d;
-  --chart-4: #166534;
-  --chart-5: #14532d;
-  --radius: 0.75rem;
-  --background: #09090b;
-  --foreground: #e4e4e7;
-  --card: #18181b;
-  --card-foreground: #e4e4e7;
-  --popover: #18181b;
-  --popover-foreground: #e4e4e7;
-  --secondary: #27272a;
-  --secondary-foreground: #e4e4e7;
-  --muted: #71717a;
-  --muted-foreground: #a1a1aa;
-  --accent: #22c55e;
-  --accent-foreground: #09090b;
-  --destructive: #ef4444;
-  --destructive-foreground: #fafafa;
-  --border: #27272a;
-  --input: #27272a;
-  --ring: #22c55e;
-  --sidebar: #18181b;
-  --sidebar-foreground: #e4e4e7;
-  --sidebar-accent: #22c55e;
-  --sidebar-accent-foreground: #09090b;
-  --sidebar-border: #27272a;
-  --sidebar-ring: #22c55e;
+  /* ═══ FloraIQ "Botanical Night" — default (dark) theme ═══
+     Sampled intents (OKLCH):
+       forest-night bg  oklch(0.17 0.015 160)   new-leaf primary oklch(0.74 0.15 152)
+       sunlight amber   oklch(0.80 0.13 82)     river water      oklch(0.71 0.11 235)
+       bloom pink       oklch(0.70 0.14 350)    wilt red         oklch(0.62 0.19 27)   */
+
+  --radius: 1rem;
+
+  /* Surfaces — deep forest, green-tinted rather than neutral gray */
+  --background: #0b120d;            /* forest night        */
+  --foreground: #ecf2ea;            /* morning mist        */
+  --card: #121a14;                  /* canopy shadow       */
+  --card-foreground: #ecf2ea;
+  --popover: #16211a;               /* undergrowth         */
+  --popover-foreground: #ecf2ea;
+  --secondary: #1b2a20;             /* fern layer          */
+  --secondary-foreground: #d9e5d4;
+  --muted: #223227;                 /* leaf litter         */
+  --muted-foreground: #94aa97;      /* lichen              */
+  --accent: #1e3126;                /* moss (hover wash)   */
+  --accent-foreground: #baf1c6;
+
+  /* Brand */
+  --primary: #55c877;               /* new leaf            */
+  --primary-foreground: #06130a;
+  --destructive: #e05648;           /* wilt                */
+  --destructive-foreground: #fdf6f4;
+
+  /* Lines & focus */
+  --border: #223028;                /* leaf vein           */
+  --input: #223028;
+  --ring: #55c877;
+
+  /* Data-viz — leaf / sunlight / water / bloom / lichen */
+  --chart-1: #55c877;
+  --chart-2: #e9b95c;
+  --chart-3: #5aa7de;
+  --chart-4: #d976a8;
+  --chart-5: #8fa893;
+
+  /* Sidebar (desktop / admin surfaces) */
+  --sidebar: #121a14;
+  --sidebar-foreground: #ecf2ea;
+  --sidebar-primary: #55c877;
+  --sidebar-primary-foreground: #06130a;
+  --sidebar-accent: #1e3126;
+  --sidebar-accent-foreground: #baf1c6;
+  --sidebar-border: #223028;
+  --sidebar-ring: #55c877;
+
+  /* Extended botanical palette */
+  --leaf: #55c877;
+  --leaf-bright: #7fe29d;
+  --canopy: #1e4d30;
+  --moss: #3c6b4a;
+  --lichen: #94aa97;
+  --sunlight: #e9b95c;
+  --water: #5aa7de;
+  --soil: #a4795a;
+  --bloom: #d976a8;
+  --wilt: #e05648;
 }
 
+/* Dark class mirrors :root — the app is dark-first; kept so `.dark`-scoped
+   component styles resolve identically. */
 .dark {
-  --primary: #22c55e;
-  --primary-foreground: #09090b;
-  --sidebar-primary: #22c55e;
-  --sidebar-primary-foreground: #09090b;
-  --background: #09090b;
-  --foreground: #e4e4e7;
-  --card: #18181b;
-  --card-foreground: #e4e4e7;
-  --popover: #18181b;
-  --popover-foreground: #e4e4e7;
-  --secondary: #27272a;
-  --secondary-foreground: #e4e4e7;
-  --muted: #71717a;
-  --muted-foreground: #a1a1aa;
-  --accent: #22c55e;
-  --accent-foreground: #09090b;
-  --destructive: #ef4444;
-  --destructive-foreground: #fafafa;
-  --border: #27272a;
-  --input: #27272a;
-  --ring: #22c55e;
-  --chart-1: #22c55e;
-  --chart-2: #16a34a;
-  --chart-3: #15803d;
-  --chart-4: #166534;
-  --chart-5: #14532d;
-  --sidebar: #18181b;
-  --sidebar-foreground: #e4e4e7;
-  --sidebar-accent: #22c55e;
-  --sidebar-accent-foreground: #09090b;
-  --sidebar-border: #27272a;
-  --sidebar-ring: #22c55e;
+  --background: #0b120d;
+  --foreground: #ecf2ea;
+  --card: #121a14;
+  --card-foreground: #ecf2ea;
+  --popover: #16211a;
+  --popover-foreground: #ecf2ea;
+  --secondary: #1b2a20;
+  --secondary-foreground: #d9e5d4;
+  --muted: #223227;
+  --muted-foreground: #94aa97;
+  --accent: #1e3126;
+  --accent-foreground: #baf1c6;
+  --primary: #55c877;
+  --primary-foreground: #06130a;
+  --destructive: #e05648;
+  --destructive-foreground: #fdf6f4;
+  --border: #223028;
+  --input: #223028;
+  --ring: #55c877;
+  --chart-1: #55c877;
+  --chart-2: #e9b95c;
+  --chart-3: #5aa7de;
+  --chart-4: #d976a8;
+  --chart-5: #8fa893;
+  --sidebar: #121a14;
+  --sidebar-foreground: #ecf2ea;
+  --sidebar-primary: #55c877;
+  --sidebar-primary-foreground: #06130a;
+  --sidebar-accent: #1e3126;
+  --sidebar-accent-foreground: #baf1c6;
+  --sidebar-border: #223028;
+  --sidebar-ring: #55c877;
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
-  body {
-    @apply bg-background text-foreground;
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: none;
+    scroll-behavior: smooth;
   }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "ss01";
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: rgba(85, 200, 119, 0.3);
+    color: #ecf2ea;
+  }
+
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]),
   [type="button"]:not(:disabled),
@@ -131,6 +219,18 @@
   input[type="checkbox"]:not(:disabled),
   input[type="radio"]:not(:disabled) {
     @apply cursor-pointer;
+  }
+
+  /* WCAG 2.2: honor the user's motion preference everywhere */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 
@@ -148,144 +248,113 @@
     min-width: 0;
   }
 
-  /* Premium animations */
+  /* ── Ambient keyframes ──────────────────────────────────────────────────── */
   @keyframes glow {
-    0%, 100% {
-      box-shadow: 0 0 20px rgba(34, 197, 94, 0.3);
-    }
-    50% {
-      box-shadow: 0 0 40px rgba(34, 197, 94, 0.6);
-    }
+    0%, 100% { box-shadow: 0 0 20px rgba(85, 200, 119, 0.28); }
+    50%      { box-shadow: 0 0 40px rgba(85, 200, 119, 0.55); }
   }
 
   @keyframes float {
-    0%, 100% {
-      transform: translateY(0px);
-    }
-    50% {
-      transform: translateY(-10px);
-    }
+    0%, 100% { transform: translateY(0px); }
+    50%      { transform: translateY(-10px); }
   }
 
   @keyframes slide-in-left {
-    from {
-      opacity: 0;
-      transform: translateX(-20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateX(0);
-    }
+    from { opacity: 0; transform: translateX(-20px); }
+    to   { opacity: 1; transform: translateX(0); }
   }
 
   @keyframes slide-in-right {
-    from {
-      opacity: 0;
-      transform: translateX(20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateX(0);
-    }
+    from { opacity: 0; transform: translateX(20px); }
+    to   { opacity: 1; transform: translateX(0); }
   }
 
   @keyframes fade-in-up {
-    from {
-      opacity: 0;
-      transform: translateY(20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
   }
 
   @keyframes scale-in {
-    from {
-      opacity: 0;
-      transform: scale(0.95);
-    }
-    to {
-      opacity: 1;
-      transform: scale(1);
-    }
+    from { opacity: 0; transform: scale(0.95); }
+    to   { opacity: 1; transform: scale(1); }
   }
 
   @keyframes pulse-glow {
-    0%, 100% {
-      opacity: 1;
-    }
-    50% {
-      opacity: 0.7;
-    }
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.7; }
   }
 
-  .animate-glow {
-    animation: glow 2s ease-in-out infinite;
+  @keyframes shimmer {
+    from { background-position: 200% 0; }
+    to   { background-position: -200% 0; }
   }
 
-  .animate-float {
-    animation: float 3s ease-in-out infinite;
+  .animate-glow          { animation: glow 2s var(--ease-in-out-soft) infinite; }
+  .animate-float         { animation: float 3s var(--ease-in-out-soft) infinite; }
+  .animate-slide-in-left  { animation: slide-in-left 0.5s var(--ease-spring); }
+  .animate-slide-in-right { animation: slide-in-right 0.5s var(--ease-spring); }
+  .animate-fade-in-up     { animation: fade-in-up 0.6s var(--ease-spring); }
+  .animate-scale-in       { animation: scale-in 0.4s var(--ease-spring); }
+  .animate-pulse-glow     { animation: pulse-glow 2s var(--ease-in-out-soft) infinite; }
+
+  /* Skeleton shimmer for loading states */
+  .skeleton-shimmer {
+    background: linear-gradient(
+      100deg,
+      rgba(34, 50, 39, 0.6) 40%,
+      rgba(60, 107, 74, 0.35) 50%,
+      rgba(34, 50, 39, 0.6) 60%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.6s linear infinite;
   }
 
-  .animate-slide-in-left {
-    animation: slide-in-left 0.5s ease-out;
-  }
-
-  .animate-slide-in-right {
-    animation: slide-in-right 0.5s ease-out;
-  }
-
-  .animate-fade-in-up {
-    animation: fade-in-up 0.6s ease-out;
-  }
-
-  .animate-scale-in {
-    animation: scale-in 0.4s ease-out;
-  }
-
-  .animate-pulse-glow {
-    animation: pulse-glow 2s ease-in-out infinite;
-  }
-
-  /* Glassmorphism effect */
+  /* ── Layered glass (green-tinted, premium depth) ────────────────────────── */
   .glass {
-    background: rgba(24, 24, 27, 0.8);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(39, 39, 42, 0.5);
+    background: rgba(18, 26, 20, 0.72);
+    backdrop-filter: blur(16px) saturate(1.4);
+    -webkit-backdrop-filter: blur(16px) saturate(1.4);
+    border: 1px solid rgba(148, 170, 151, 0.14);
   }
 
   .glass-sm {
-    background: rgba(24, 24, 27, 0.6);
-    backdrop-filter: blur(8px);
-    border: 1px solid rgba(39, 39, 42, 0.3);
+    background: rgba(18, 26, 20, 0.55);
+    backdrop-filter: blur(10px) saturate(1.2);
+    -webkit-backdrop-filter: blur(10px) saturate(1.2);
+    border: 1px solid rgba(148, 170, 151, 0.1);
   }
 
-  /* Gradient text */
+  .glass-strong {
+    background: rgba(11, 18, 13, 0.85);
+    backdrop-filter: blur(24px) saturate(1.5);
+    -webkit-backdrop-filter: blur(24px) saturate(1.5);
+    border: 1px solid rgba(148, 170, 151, 0.18);
+  }
+
+  /* ── Gradient text: new leaf → sunlight ─────────────────────────────────── */
   .gradient-text {
-    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+    background: linear-gradient(135deg, #7fe29d 0%, #55c877 45%, #e9b95c 110%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
 
-  /* Hover glow effect */
+  /* ── Interactive elevation ──────────────────────────────────────────────── */
   .hover-glow {
-    transition: all 0.3s ease;
+    transition: box-shadow 0.3s var(--ease-spring);
   }
 
   .hover-glow:hover {
-    box-shadow: 0 0 30px rgba(34, 197, 94, 0.4);
+    box-shadow: var(--shadow-glow);
   }
 
-  /* Card hover lift */
   .card-hover {
-    transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+    transition: transform 0.3s var(--ease-spring), box-shadow 0.3s var(--ease-spring);
   }
 
   .card-hover:hover {
     transform: translateY(-4px);
-    box-shadow: 0 20px 40px rgba(34, 197, 94, 0.2);
+    box-shadow: var(--shadow-float);
   }
 
   @media (min-width: 640px) {
@@ -304,21 +373,30 @@
   }
 }
 
-/* Scrollbar styling */
+@layer utilities {
+  /* Safe-area helpers for notched devices / Android gesture bar */
+  .pt-safe { padding-top: env(safe-area-inset-top); }
+  .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+  .pl-safe { padding-left: env(safe-area-inset-left); }
+  .pr-safe { padding-right: env(safe-area-inset-right); }
+  .mb-safe { margin-bottom: env(safe-area-inset-bottom); }
+}
+
+/* ── Scrollbar (desktop) ─────────────────────────────────────────────────── */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #09090b;
+  background: #0b120d;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #27272a;
+  background: #223028;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #3f3f46;
+  background: #3c6b4a;
 }

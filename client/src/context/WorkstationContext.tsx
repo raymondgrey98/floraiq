@@ -9,8 +9,18 @@ const SUPABASE_ANON_KEY = (
   ""
 );
 
-// Export so Login/Signup/Profile can call auth methods directly
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// True when real Supabase credentials were provided at build time
+export const supabaseConfigured = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
+
+// Export so Login/Signup/Profile can call auth methods directly.
+// createClient throws on empty strings, which would crash the whole app at
+// module load when env vars are absent (e.g. CI-built APKs) — fall back to
+// inert placeholder credentials so the UI still boots; auth calls are
+// guarded by `supabaseConfigured`.
+export const supabase = createClient(
+  SUPABASE_URL || "https://placeholder.supabase.co",
+  SUPABASE_ANON_KEY || "sb_publishable_placeholder",
+);
 
 // ── Shared type (matches server/ai-service.ts output) ────────────────────────
 export interface PlantIdentificationResult {
