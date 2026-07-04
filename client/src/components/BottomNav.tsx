@@ -21,20 +21,21 @@ import {
   UserCircle,
   type Icon,
 } from "@phosphor-icons/react";
+import { useT } from "../i18n";
 
 interface NavItem {
   href: string;
   icon: Icon;
-  label: string;
+  labelKey: "nav.home" | "nav.library" | "nav.identify" | "nav.garden" | "nav.me";
   main?: boolean;
 }
 
 const NAV: NavItem[] = [
-  { href: "/",        icon: House,        label: "Home"    },
-  { href: "/history", icon: BookOpenText, label: "Library" },
-  { href: "/scan",    icon: Camera,       label: "Identify", main: true },
-  { href: "/journal", icon: Plant,        label: "Garden"  },
-  { href: "/profile", icon: UserCircle,   label: "Me"      },
+  { href: "/",        icon: House,        labelKey: "nav.home"    },
+  { href: "/history", icon: BookOpenText, labelKey: "nav.library" },
+  { href: "/scan",    icon: Camera,       labelKey: "nav.identify", main: true },
+  { href: "/journal", icon: Plant,        labelKey: "nav.garden"  },
+  { href: "/profile", icon: UserCircle,   labelKey: "nav.me"      },
 ];
 
 function haptic() {
@@ -45,6 +46,7 @@ function haptic() {
 
 export default function BottomNav() {
   const [location] = useLocation();
+  const t = useT();
 
   return (
     <nav
@@ -63,7 +65,7 @@ export default function BottomNav() {
               <Link key={item.href} href={item.href}>
                 <button
                   type="button"
-                  aria-label={item.label}
+                  aria-label={t(item.labelKey)}
                   aria-current={isActive ? "page" : undefined}
                   onClick={haptic}
                   className="-mt-7 flex min-w-16 flex-col items-center gap-1"
@@ -80,7 +82,7 @@ export default function BottomNav() {
                   <span className={`text-[10px] font-semibold tracking-wide transition-colors ${
                     isActive ? "text-leaf" : "text-muted-foreground"
                   }`}>
-                    {item.label}
+                    {t(item.labelKey)}
                   </span>
                 </button>
               </Link>
@@ -91,7 +93,7 @@ export default function BottomNav() {
             <Link key={item.href} href={item.href}>
               <button
                 type="button"
-                aria-label={item.label}
+                aria-label={t(item.labelKey)}
                 aria-current={isActive ? "page" : undefined}
                 onClick={haptic}
                 className="relative flex min-h-11 min-w-14 flex-col items-center justify-end gap-0.5 rounded-2xl px-2 pb-1 pt-1.5"
@@ -113,7 +115,7 @@ export default function BottomNav() {
                 <span className={`relative text-[10px] transition-all duration-200 ${
                   isActive ? "font-semibold text-leaf" : "font-medium text-muted-foreground"
                 }`}>
-                  {item.label}
+                  {t(item.labelKey)}
                 </span>
               </button>
             </Link>

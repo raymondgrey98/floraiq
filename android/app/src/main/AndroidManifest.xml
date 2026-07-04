@@ -58,6 +58,12 @@
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="29" />
 
+    <!-- EXIF GPS provenance: Android 10+ redacts location metadata from media
+         unless this is granted. FloraIQ reads where a gallery photo was TAKEN
+         (e.g. a national park) so uploaded observations are geotagged
+         truthfully instead of inheriting the user's current position. -->
+    <uses-permission android:name="android.permission.ACCESS_MEDIA_LOCATION" />
+
     <!-- Notifications: watering / care reminders (Android 13+ runtime permission) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { createClient, type User, type Session } from "@supabase/supabase-js";
+import type { PhotoMeta } from "@/lib/exif";
 
 const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL as string) || "";
 // Supports both new publishable key format (sb_publishable_...) and legacy anon key
@@ -54,9 +55,12 @@ interface WorkstationContextType {
   activeScanBlob:   Blob | null;
   activeScanResult: PlantIdentificationResult | null;
   activeScanMode:   string;
+  /** EXIF provenance of a gallery-uploaded photo (null for live captures) */
+  activeScanPhotoMeta: PhotoMeta | null;
   setActiveScanBlob:   (blob: Blob | null)                       => void;
   setActiveScanResult: (result: PlantIdentificationResult | null) => void;
   setActiveScanMode:   (mode: string)                            => void;
+  setActiveScanPhotoMeta: (meta: PhotoMeta | null)               => void;
   clearScan:           () => void;
 }
 
@@ -70,6 +74,7 @@ export function WorkstationProvider({ children }: { children: React.ReactNode })
   const [activeScanBlob,   setActiveScanBlob]   = useState<Blob | null>(null);
   const [activeScanResult, setActiveScanResult] = useState<PlantIdentificationResult | null>(null);
   const [activeScanMode,   setActiveScanMode]   = useState<string>("plant");
+  const [activeScanPhotoMeta, setActiveScanPhotoMeta] = useState<PhotoMeta | null>(null);
 
   // ── Supabase auth bootstrap ─────────────────────────────────────────────────
   useEffect(() => {
@@ -103,13 +108,14 @@ export function WorkstationProvider({ children }: { children: React.ReactNode })
   const clearScan = useCallback(() => {
     setActiveScanBlob(null);
     setActiveScanResult(null);
+    setActiveScanPhotoMeta(null);
   }, []);
 
   return (
     <WorkstationContext.Provider value={{
       user, session, authLoading, signOut,
-      activeScanBlob, activeScanResult, activeScanMode,
-      setActiveScanBlob, setActiveScanResult, setActiveScanMode,
+      activeScanBlob, activeScanResult, activeScanMode, activeScanPhotoMeta,
+      setActiveScanBlob, setActiveScanResult, setActiveScanMode, setActiveScanPhotoMeta,
       clearScan,
     }}>
       {children}

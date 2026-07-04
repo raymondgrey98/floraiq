@@ -14,9 +14,10 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { useWorkstation, type PlantIdentificationResult } from "@/context/WorkstationContext";
 import WaveOrb from "@/components/WaveOrb";
+import { getLang } from "@/i18n";
 
 export default function ScanProcessing() {
-  const { activeScanBlob, activeScanMode, setActiveScanResult } = useWorkstation();
+  const { activeScanBlob, activeScanMode, activeScanPhotoMeta, setActiveScanResult } = useWorkstation();
   const [, setLocation] = useLocation();
 
   const dispatched  = useRef(false);
@@ -40,19 +41,31 @@ export default function ScanProcessing() {
       formData.append("image",   blob,           "capture.jpg");
       formData.append("context", `Scan mode: ${activeScanMode}`);
 
-      // Best-effort geolocation to improve accuracy
-      try {
-        const pos = await new Promise<GeolocationPosition>((res, rej) =>
-          navigator.geolocation.getCurrentPosition(res, rej, { timeout: 2500 })
-        );
+      // Observation location, in order of truthfulness:
+      //  1. EXIF GPS baked into an uploaded photo — where it was actually taken
+      //  2. device geolocation — correct for live camera captures
+      if (activeScanPhotoMeta) {
         formData.append("location", JSON.stringify({
-          latitude:  pos.coords.latitude,
-          longitude: pos.coords.longitude,
+          latitude:  activeScanPhotoMeta.latitude,
+          longitude: activeScanPhotoMeta.longitude,
+          takenAt:   activeScanPhotoMeta.takenAt,
+          source:    activeScanPhotoMeta.source,
         }));
-      } catch { /* optional — carry on without it */ }
+      } else {
+        try {
+          const pos = await new Promise<GeolocationPosition>((res, rej) =>
+            navigator.geolocation.getCurrentPosition(res, rej, { timeout: 2500 })
+          );
+          formData.append("location", JSON.stringify({
+            latitude:  pos.coords.latitude,
+            longitude: pos.coords.longitude,
+            source:    "device-gps",
+          }));
+        } catch { /* optional — carry on without it */ }
+      }
 
       try {
-        const response = await fetch("/api/identify?lang=en", {
+        const response = await fetch(`/api/identify?lang=${getLang()}`, {
           method: "POST",
           body:   formData,
           signal: abortRef.current.signal,

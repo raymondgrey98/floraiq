@@ -5,6 +5,8 @@ import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { WorkstationProvider } from "./context/WorkstationContext";
+import { I18nProvider } from "./i18n";
+import WeatherIntelligence from "./pages/WeatherIntelligence";
 import Home from "./pages/Home";
 import ScanViewfinder from "./pages/ScanViewfinder";
 import ScanProcessing from "./pages/ScanProcessing";
@@ -171,6 +173,7 @@ function Router() {
       <Route path={"/farmtasks"} component={FarmDashboard} />
       <Route path={"/landmap"} component={LandMapper} />
       <Route path={"/droneview"} component={DroneView} />
+      <Route path={"/weathermap"} component={WeatherIntelligence} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />
@@ -181,16 +184,18 @@ function Router() {
 function App() {
   return (
     <ErrorBoundary>
-      <WorkstationProvider>
-        <ThemeProvider defaultTheme="dark">
-          <TooltipProvider>
-            <Toaster richColors position="top-center" />
-            <Router />
-            <Chatbot />
-            <BottomNav />
-          </TooltipProvider>
-        </ThemeProvider>
-      </WorkstationProvider>
+      <I18nProvider>
+        <WorkstationProvider>
+          <ThemeProvider defaultTheme="dark">
+            <TooltipProvider>
+              <Toaster richColors position="top-center" />
+              <Router />
+              <Chatbot />
+              <BottomNav />
+            </TooltipProvider>
+          </ThemeProvider>
+        </WorkstationProvider>
+      </I18nProvider>
     </ErrorBoundary>
   );
 }

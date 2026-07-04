@@ -53,7 +53,11 @@ or geolocation.
 - species ID from photo (plants, birds, insects, fungi, marine, reptiles)
 - plant disease detection — HuggingFace MobileNet
 - foraging map via GBIF
-- farm assistant (irrigation, soil, pest, market prices)
+- weather intelligence map — live rain radar + cloud satellite (RainViewer), heat/wind grid (Open-Meteo), tap-anywhere 7-day forecast, global
+- agri market finder — pinpoint GPS + OpenStreetMap stores worldwide, best-pick ranking, Google Maps / Waze directions
+- farm assistant (irrigation, soil, pest, market prices) — region-aware, all 196 countries
+- EXIF provenance: gallery photos keep the location where they were *taken* (needs `ACCESS_MEDIA_LOCATION` on Android)
+- 13-language UI (English, Español, Português, Français, Deutsch, Русский, العربية with RTL, हिन्दी, 中文, 日本語, Bahasa Indonesia, Bahasa Melayu, Kiswahili)
 - water tracker, plant journal, wilderness guides
 - AI chat with session history (Supabase)
 - 70+ tools

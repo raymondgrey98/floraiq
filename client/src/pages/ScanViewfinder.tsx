@@ -11,6 +11,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
 import { useWorkstation } from "@/context/WorkstationContext";
+import { extractPhotoMeta } from "@/lib/exif";
 import {
   Leaf, Bug, Bird, Fish, Skull, Sprout, Waves, AlertTriangle,
   Upload, ArrowLeft,
@@ -35,7 +36,7 @@ export default function ScanViewfinder() {
   const [camError,     setCamError]     = useState("");
   const [selectedMode, setSelectedMode] = useState("plant");
 
-  const { setActiveScanBlob, setActiveScanMode } = useWorkstation();
+  const { setActiveScanBlob, setActiveScanMode, setActiveScanPhotoMeta } = useWorkstation();
 
   // ── Init camera ─────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -79,21 +80,25 @@ export default function ScanViewfinder() {
       if (!blob) return;
       setActiveScanMode(selectedMode);
       setActiveScanBlob(blob);
+      setActiveScanPhotoMeta(null); // live capture — device geolocation applies
       // Stop stream before leaving — prevents device lock
       streamRef.current?.getTracks().forEach(t => t.stop());
       setLocation("/scan/processing");
     }, "image/jpeg", 0.85);
-  }, [streamActive, selectedMode, setActiveScanBlob, setActiveScanMode, setLocation]);
+  }, [streamActive, selectedMode, setActiveScanBlob, setActiveScanMode, setActiveScanPhotoMeta, setLocation]);
 
   // ── Upload fallback ─────────────────────────────────────────────────────────
-  const handleUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setActiveScanMode(selectedMode);
     setActiveScanBlob(file);
+    // Gallery photo: its EXIF record (where it was TAKEN) is the truthful
+    // observation location — not where the user is standing right now.
+    setActiveScanPhotoMeta(await extractPhotoMeta(file));
     streamRef.current?.getTracks().forEach(t => t.stop());
     setLocation("/scan/processing");
-  }, [selectedMode, setActiveScanBlob, setActiveScanMode, setLocation]);
+  }, [selectedMode, setActiveScanBlob, setActiveScanMode, setActiveScanPhotoMeta, setLocation]);
 
   return (
     <div

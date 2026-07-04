@@ -59,6 +59,7 @@ const TOOLS: Tool[] = [
   { id:"insurance", emoji:"📋", title:"Crop Insurance Help",  desc:"Protect your harvest — government schemes explained simply",         href:"/insurance",     cat:"Farm",     live:false },
 
   // ── WEATHER ──────────────────────────────────────────────────────
+  { id:"weathermap",emoji:"🛰️", title:"Weather Intelligence",  desc:"Live rain radar, cloud satellite, heat + wind map layers — tap anywhere on Earth for a forecast", href:"/weathermap", cat:"Farm", live:true },
   { id:"weather",   emoji:"🌦️", title:"Live Weather",         desc:"Today's weather + 7-day forecast for planting decisions",            href:"/farm",          cat:"Farm",     live:true  },
   { id:"moon",      emoji:"🌙", title:"Moon Planting Guide",  desc:"Best days to plant, prune, and harvest using the moon cycle",        href:"/moon",          cat:"Farm",     live:true  },
   { id:"uv",        emoji:"☀️", title:"Sun & UV Tracker",     desc:"UV levels by month — which plants need shade vs full sun",           href:"/uv",            cat:"Farm",     live:true  },
