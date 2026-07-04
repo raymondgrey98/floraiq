@@ -3,6 +3,7 @@ import { Link, useLocation } from "wouter";
 import { X, Share2, Download, MapPin, Leaf, AlertTriangle, ExternalLink, Loader2, BookOpen, Youtube, Globe, Droplets, Sun, Thermometer, FlaskConical, Wind } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ConfidenceRing from "@/components/ConfidenceRing";
+import ReferenceGallery from "@/components/ReferenceGallery";
 
 interface ScanResult {
   id?: number;
@@ -247,6 +248,9 @@ export default function ScanResults() {
                 </a>
               </div>
             </div>
+
+            {/* ── VERIFIED REFERENCE PHOTOS — compare against the user's shot ── */}
+            <ReferenceGallery scientificName={result.scientificName} userPhotoUrl={result.photoUrl} />
 
             {/* ── CARE SUMMARY CARDS — PictureThis style ── */}
             <div className="glass rounded-2xl border border-border/40 p-5">
