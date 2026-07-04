@@ -1,9 +1,13 @@
 /**
  * WeatherIntelligence — Route: /weathermap
  *
- * ArcGIS-style multi-layer weather map, global coverage, zero API keys:
+ * ArcGIS-style multi-layer Earth intelligence map, global coverage, zero API keys:
  *   RADAR — live precipitation tiles from RainViewer (rainviewer.com/api.html)
  *   CLOUDS — infrared satellite tiles from RainViewer
+ *   SAT — NASA GIBS MODIS Terra true-color satellite imagery, updated daily
+ *          (nasa-gibs.github.io/gibs-api-docs — public WMTS, no key)
+ *   EVENTS — NASA EONET live natural events: wildfires, severe storms,
+ *          volcanoes, floods, sea ice (eonet.gsfc.nasa.gov — public API)
  *   HEAT — temperature grid sampled from Open-Meteo (open-meteo.com), rendered
  *          as a color-ramped field that re-samples as the map moves
  *   WIND — direction/speed arrows from the same Open-Meteo grid
@@ -19,17 +23,27 @@ import "leaflet/dist/leaflet.css";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, CloudRain, Cloud, Thermometer, Wind, Crosshair, X,
+  Satellite, Flame,
 } from "lucide-react";
 import { useT } from "@/i18n";
 
-type LayerKey = "RADAR" | "CLOUDS" | "HEAT" | "WIND";
+type LayerKey = "RADAR" | "CLOUDS" | "SAT" | "EVENTS" | "HEAT" | "WIND";
 
 const LAYERS: { key: LayerKey; label: string; Icon: typeof CloudRain; color: string }[] = [
-  { key: "RADAR",  label: "Rain radar",  Icon: CloudRain,   color: "#5aa7de" },
-  { key: "CLOUDS", label: "Clouds IR",   Icon: Cloud,       color: "#94aa97" },
-  { key: "HEAT",   label: "Heat",        Icon: Thermometer, color: "#e05648" },
-  { key: "WIND",   label: "Wind",        Icon: Wind,        color: "#7fe29d" },
+  { key: "RADAR",  label: "Rain radar",   Icon: CloudRain,   color: "#5aa7de" },
+  { key: "CLOUDS", label: "Clouds IR",    Icon: Cloud,       color: "#94aa97" },
+  { key: "SAT",    label: "NASA satellite", Icon: Satellite, color: "#d976a8" },
+  { key: "EVENTS", label: "NASA events",  Icon: Flame,       color: "#e9b95c" },
+  { key: "HEAT",   label: "Heat",         Icon: Thermometer, color: "#e05648" },
+  { key: "WIND",   label: "Wind",         Icon: Wind,        color: "#7fe29d" },
 ];
+
+/** NASA EONET category → marker glyph */
+const EONET_EMOJI: Record<string, string> = {
+  wildfires: "🔥", severeStorms: "🌀", volcanoes: "🌋", floods: "🌊",
+  seaLakeIce: "🧊", drought: "🏜️", dustHaze: "🌫️", earthquakes: "💥",
+  landslides: "⛰️", snow: "❄️", tempExtremes: "🌡️", manmade: "⚠️",
+};
 
 const WMO_ICON: Record<number, string> = {
   0: "☀️", 1: "🌤️", 2: "⛅", 3: "☁️", 45: "🌫️", 48: "🌫️",
@@ -70,6 +84,8 @@ export default function WeatherIntelligence() {
   const mapRef     = useRef<L.Map | null>(null);
   const radarRef   = useRef<L.TileLayer | null>(null);
   const cloudsRef  = useRef<L.TileLayer | null>(null);
+  const satRef     = useRef<L.TileLayer | null>(null);
+  const eventsRef  = useRef<L.LayerGroup | null>(null);
   const heatRef    = useRef<L.LayerGroup | null>(null);
   const windRef    = useRef<L.LayerGroup | null>(null);
   const pinRef     = useRef<L.Marker | null>(null);
@@ -165,9 +181,49 @@ export default function WeatherIntelligence() {
       maxZoom: 18,
     }).addTo(map);
 
-    heatRef.current = L.layerGroup().addTo(map);
-    windRef.current = L.layerGroup().addTo(map);
-    mapRef.current  = map;
+    heatRef.current   = L.layerGroup().addTo(map);
+    windRef.current   = L.layerGroup().addTo(map);
+    eventsRef.current = L.layerGroup();
+    mapRef.current    = map;
+
+    // NASA GIBS — MODIS Terra true-color, yesterday's UTC pass (today's
+    // imagery is incomplete until the daily processing finishes)
+    const d = new Date(Date.now() - 24 * 3600 * 1000);
+    const gibsDate = d.toISOString().slice(0, 10);
+    satRef.current = L.tileLayer(
+      `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_CorrectedReflectance_TrueColor/default/${gibsDate}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg`,
+      { attribution: "NASA GIBS", opacity: 0.85, maxNativeZoom: 9, maxZoom: 18 },
+    );
+    if (activeRef.current.has("SAT")) satRef.current.addTo(map);
+
+    // NASA EONET — live natural events (wildfires, storms, volcanoes, floods…)
+    fetch("https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=300")
+      .then(r => r.json())
+      .then(json => {
+        (json?.events ?? []).forEach((ev: any) => {
+          const geo = ev.geometry?.[ev.geometry.length - 1];
+          if (geo?.type !== "Point" || !Array.isArray(geo.coordinates)) return;
+          const [lon, lat] = geo.coordinates;
+          const cat = ev.categories?.[0];
+          const glyph = EONET_EMOJI[cat?.id] ?? "📍";
+          L.marker([lat, lon], {
+            icon: L.divIcon({
+              className: "",
+              html: `<div style="transform:translate(-50%,-50%);font-size:18px;
+                       text-shadow:0 1px 6px rgba(4,12,7,.9)">${glyph}</div>`,
+              iconSize: [0, 0],
+            }),
+          })
+            .bindPopup(
+              `<b>${ev.title}</b><br/>${cat?.title ?? "Event"} · ${
+                geo.date ? new Date(geo.date).toLocaleDateString() : ""
+              }<br/><span style="font-size:10px">Source: NASA EONET</span>`,
+            )
+            .addTo(eventsRef.current!);
+        });
+        if (activeRef.current.has("EVENTS")) eventsRef.current!.addTo(map);
+      })
+      .catch(() => { /* EONET unavailable — other layers still work */ });
 
     // RainViewer frame catalog → newest radar + infrared tile layers
     fetch("https://api.rainviewer.com/public/weather-maps.json")
@@ -256,6 +312,12 @@ export default function WeatherIntelligence() {
     if (key === "CLOUDS" && cloudsRef.current) {
       next.has("CLOUDS") ? cloudsRef.current.addTo(map) : cloudsRef.current.remove();
     }
+    if (key === "SAT" && satRef.current) {
+      next.has("SAT") ? satRef.current.addTo(map) : satRef.current.remove();
+    }
+    if (key === "EVENTS" && eventsRef.current) {
+      next.has("EVENTS") ? eventsRef.current.addTo(map) : eventsRef.current.remove();
+    }
     if (key === "HEAT" || key === "WIND") refreshGrid();
   };
 
@@ -283,7 +345,7 @@ export default function WeatherIntelligence() {
           <div className="glass rounded-2xl px-3 py-2">
             <p className="text-sm font-semibold leading-tight">{t("weather.title")}</p>
             {radarTime && (
-              <p className="text-[10px] text-muted-foreground">Radar {radarTime} · Open-Meteo · RainViewer</p>
+              <p className="text-[10px] text-muted-foreground">Radar {radarTime} · NASA · Open-Meteo · RainViewer</p>
             )}
           </div>
         </div>

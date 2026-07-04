@@ -1,7 +1,9 @@
+import { useEffect, useState } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
+import Onboarding, { hasOnboarded } from "./pages/Onboarding";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { WorkstationProvider } from "./context/WorkstationContext";
@@ -89,10 +91,21 @@ import FarmDashboard from "./pages/FarmDashboard";
 import LandMapper from "./pages/LandMapper";
 import DroneView from "./pages/DroneView";
 
+// First launch shows onboarding; every launch after that goes straight home.
+function Landing() {
+  const [onboarded, setOnboarded] = useState(hasOnboarded);
+  useEffect(() => {
+    const done = () => setOnboarded(true);
+    window.addEventListener("floraiq-onboarded", done);
+    return () => window.removeEventListener("floraiq-onboarded", done);
+  }, []);
+  return onboarded ? <Home /> : <Onboarding />;
+}
+
 function Router() {
   return (
     <Switch>
-      <Route path={"/"} component={Home} />
+      <Route path={"/"} component={Landing} />
       {/* FSM scan pipeline — viewfinder → processing → results */}
       <Route path={"/scan"} component={ScanViewfinder} />
       <Route path={"/scan/processing"} component={ScanProcessing} />

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { Search, Trash2, ExternalLink, Calendar, Camera } from "lucide-react";
+import GardenHealthBoard from "@/components/GardenHealthBoard";
 
 interface ScanEntry {
   id: number;
@@ -134,6 +135,7 @@ export default function PlantJournal() {
       </div>
 
       <div className="container py-4 max-w-5xl">
+        <GardenHealthBoard scans={scans} />
         {/* Empty state */}
         {scans.length === 0 ? (
           <div className="text-center py-20 space-y-4">
