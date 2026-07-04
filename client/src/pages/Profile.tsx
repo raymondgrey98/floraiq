@@ -1,10 +1,9 @@
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { ChevronLeft, Globe, Edit3, Camera } from "lucide-react";
+import { SUPPORTED_LANGUAGES, useI18n } from "@/i18n";
 
-const LANGUAGES = ["English","Bahasa Malaysia","Mandarin 中文","Tamil தமிழ்","Iban","Kadazan","Tagalog","Thai ภาษาไทย","Indonesian","Vietnamese Tiếng Việt","French Français","Spanish Español","Arabic عربي","Swahili","Hindi हिन्दी","Portuguese Português","German Deutsch","Japanese 日本語","Korean 한국어","Burmese ဗမာ"];
-
-const REGIONS = ["Sarawak, Malaysia","Sabah, Malaysia","Peninsular Malaysia","Singapore","Indonesia","Philippines","Thailand","Vietnam","India","Sri Lanka","Kenya","Nigeria","South Africa","Brazil","Colombia","United Kingdom","United States","Australia","Germany","France","Other"];
+const REGIONS = ["Global 🌍","North America","South America","Europe","Africa","Middle East","South Asia","East Asia","Southeast Asia","Australia & Oceania","Malaysia","Indonesia","Philippines","India","China","Japan","Kenya","Nigeria","South Africa","Brazil","United Kingdom","United States","Other"];
 
 const BADGES = [
   { id:"first_scan",   emoji:"📷", name:"First Scan",        desc:"You scanned your first organism",            earned:true  },
@@ -26,8 +25,8 @@ export default function Profile() {
   const [name, setName]         = useState("Nature Explorer");
   const [editName, setEditName] = useState(false);
   const [tempName, setTempName] = useState("");
-  const [region, setRegion]     = useState("Sarawak, Malaysia");
-  const [lang, setLang]         = useState("English");
+  const [region, setRegion]     = useState("Global 🌍");
+  const { lang, setLang }       = useI18n();
   const [tab, setTab]           = useState<"overview"|"badges"|"settings">("overview");
 
   useEffect(() => {
@@ -38,8 +37,6 @@ export default function Profile() {
       if (savedName) setName(savedName);
       const savedRegion = localStorage.getItem("floraiq_region");
       if (savedRegion) setRegion(savedRegion);
-      const savedLang = localStorage.getItem("floraiq_lang");
-      if (savedLang) setLang(savedLang);
     } catch {}
   }, []);
 
@@ -55,10 +52,8 @@ export default function Profile() {
     localStorage.setItem("floraiq_region", r);
   }
 
-  function saveLang(l: string) {
-    setLang(l);
-    localStorage.setItem("floraiq_lang", l);
-  }
+  // Language changes flow through the i18n provider (persisted + applied
+  // app-wide, including RTL layout for Arabic) — no local handling needed.
 
   // Stats from real scan history
   const typeBreakdown = Object.entries(
@@ -250,9 +245,11 @@ export default function Profile() {
             <div className="glass rounded-2xl p-5 border border-border/40">
               <h3 className="font-bold mb-1">Language 🗣️</h3>
               <p className="text-xs text-muted-foreground mb-3">FloraIQ will show plant names and info in your language</p>
-              <select value={lang} onChange={e => saveLang(e.target.value)}
+              <select value={lang} onChange={e => setLang(e.target.value)}
                 className="w-full bg-background border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                {LANGUAGES.map(l => <option key={l} value={l}>{l}</option>)}
+                {SUPPORTED_LANGUAGES.map(l => (
+                  <option key={l.code} value={l.code}>{l.native} — {l.name}</option>
+                ))}
               </select>
             </div>
 

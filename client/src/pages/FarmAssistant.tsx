@@ -21,16 +21,26 @@ const CITY_COORDS: Record<string, { lat: number; lon: number; tz: string }> = {
   "Hanoi": { lat: 21.03, lon: 105.85, tz: "Asia/Bangkok" },
   "Colombo": { lat: 6.93, lon: 79.85, tz: "Asia/Colombo" },
   "Karachi": { lat: 24.86, lon: 67.01, tz: "Asia/Karachi" },
-  "Lagos": { lat: 6.52, lon: 3.38, tz: "Africa/Lagos" },
   "London": { lat: 51.51, lon: -0.13, tz: "Europe/London" },
   "New York": { lat: 40.71, lon: -74.01, tz: "America/New_York" },
   "Sydney": { lat: -33.87, lon: 151.21, tz: "Australia/Sydney" },
 };
 
+// Pick a sensible default city from the device's timezone — a user in São
+// Paulo, Lagos, or Tokyo should never be shown another country's weather.
+function defaultCity(): string {
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const match = Object.entries(CITY_COORDS).find(([, v]) => v.tz === tz);
+    if (match) return match[0];
+  } catch { /* older WebViews */ }
+  return "London";
+}
+
 function WeatherWidget() {
   const [weather, setWeather] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [city, setCity] = useState("Kuching");
+  const [city, setCity] = useState(defaultCity);
   const [customCity, setCustomCity] = useState("");
 
   const WMO: Record<number, string> = {
@@ -51,7 +61,7 @@ function WeatherWidget() {
     setLoading(false);
   }
 
-  useEffect(() => { load("Kuching"); }, []);
+  useEffect(() => { load(defaultCity()); }, []);
 
   return (
     <div className="glass rounded-xl p-4 border border-blue-500/20">
@@ -178,21 +188,21 @@ function FarmPlanTab() {
     setLoading(true); setError(""); setResult("");
     try {
       const langName = LANGUAGES.find(l => l.code === lang)?.label || "English";
-      const reply = await askAI(`You are an expert agricultural advisor for tropical regions (Malaysia/Sarawak focus).
-IMPORTANT: Respond entirely in ${langName}. ALL prices must be in Malaysian Ringgit (RM / MYR).
+      const reply = await askAI(`You are an expert agricultural advisor serving farmers in every country and climate zone on Earth.
+IMPORTANT: Respond entirely in ${langName}. Infer the farmer's country/region from the description below and use THAT region's local currency for all prices, that region's climate for all advice, and that region's real supplier types for sourcing.
 
 Farm description: "${input}"
 
 Give a complete farm plan:
 1. Best 6-8 crops suited to this climate and conditions
-2. Planting schedule (when to plant each crop)
+2. Planting schedule (when to plant each crop, aligned to the local seasons/hemisphere)
 3. Expected harvest timeline
-4. Estimated startup cost in RM (MYR) — itemized
-5. Monthly running costs in RM (MYR)
-6. Estimated monthly income potential in RM (MYR)
-7. Key tips for success in tropical climate
-8. Common problems and how to solve them
-9. Where to buy seeds and supplies (Malaysia sources)`);
+4. Estimated startup cost in the local currency — itemized
+5. Monthly running costs in the local currency
+6. Estimated monthly income potential in the local currency
+7. Key tips for success in this climate
+8. Common problems in this region and how to solve them
+9. Where to buy seeds and supplies (local source types: agri co-ops, garden centres, government agri offices)`);
       setResult(reply);
     } catch (e: any) { setError(e.message); }
     finally { setLoading(false); }
@@ -204,7 +214,7 @@ Give a complete farm plan:
         <LangSelect value={lang} onChange={setLang} />
         <label className="block text-sm font-medium mb-3">Describe your farm</label>
         <textarea value={input} onChange={e => setInput(e.target.value)}
-          placeholder="e.g., I have a 1000 sq ft plot, full sun, sandy soil, Kuching Sarawak, tropical climate, near river, beginner farmer..."
+          placeholder="e.g., I have a 1000 sq ft plot, full sun, sandy soil, near Nairobi Kenya, warm climate, near river, beginner farmer..."
           className="w-full h-28 bg-background border border-border rounded-lg px-4 py-3 text-sm placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none" />
         <Button type="button" onClick={generate} disabled={loading || !input.trim()}
           className="mt-3 bg-emerald-500 hover:bg-emerald-600 text-white disabled:opacity-50">
@@ -347,7 +357,7 @@ function CareScheduleTab() {
   const [error, setError] = useState("");
   const [ofData, setOfData] = useState<any>(null);
 
-  const quickPlants = ["Tomato","Chili","Padi / Rice","Durian","Banana","Kangkung","Lettuce","Cucumber","Papaya","Coconut","Rambutan","Pineapple","Sweet Potato","Tapioca"];
+  const quickPlants = ["Tomato","Chili","Rice","Maize / Corn","Banana","Wheat","Lettuce","Cucumber","Papaya","Coffee","Potato","Pineapple","Sweet Potato","Cassava","Soybean","Olive"];
 
   async function generate(name: string) {
     setLoading(true); setError(""); setResult(""); setPlant(name); setOfData(null);
@@ -355,17 +365,17 @@ function CareScheduleTab() {
       const langName = LANGUAGES.find(l => l.code === lang)?.label || "English";
       // AI care schedule + OpenFarm data in parallel
       const [reply, ofRes] = await Promise.all([
-        askAI(`You are an expert tropical plant care advisor (Malaysia/Sarawak context).
-IMPORTANT: Respond in ${langName}. All prices in RM (MYR).
+        askAI(`You are an expert plant care advisor serving growers in every climate zone worldwide.
+IMPORTANT: Respond in ${langName}. Give price guidance in broadly applicable terms (typical price range, noting it varies by country).
 Create a detailed weekly care schedule for: ${name}
 🌊 Watering: frequency, amount, signs of over/under watering
 ☀️ Sunlight: hours needed, shade tolerance
-🧪 Fertilizer: type, frequency, NPK ratio, organic options, price in RM
+🧪 Fertilizer: type, frequency, NPK ratio, organic options, typical cost range
 ✂️ Pruning: when and how
-🐛 Pest & Disease: common pests in Malaysia, prevention, treatment cost in RM
-🌡️ Temperature & Humidity: ideal for Malaysia climate
+🐛 Pest & Disease: the most common pests for this crop globally, prevention, treatment options
+🌡️ Temperature & Humidity: ideal ranges, plus cold/heat tolerance limits
 📅 Growth Timeline: weeks to harvest
-💡 Pro Tips: 5 expert tips for tropical Malaysia`),
+💡 Pro Tips: 5 expert tips, noting any tropical vs temperate differences`),
         fetch(`https://openfarm.cc/api/v1/crops/?q=${encodeURIComponent(name)}`).then(r => r.ok ? r.json() : null).catch(() => null),
       ]);
       setResult(reply);
@@ -432,8 +442,8 @@ function CompanionTab() {
     setLoading(true); setError(""); setResult("");
     try {
       const langName = LANGUAGES.find(l => l.code === lang)?.label || "English";
-      const reply = await askAI(`You are a companion planting and permaculture expert (Malaysia/tropical focus).
-Respond in ${langName}. Prices in RM (MYR).
+      const reply = await askAI(`You are a companion planting and permaculture expert serving gardeners worldwide.
+Respond in ${langName}. If a location is mentioned in the input, tailor everything to that region and its currency; otherwise give globally applicable guidance.
 
 Main plant(s): "${input}"
 
@@ -441,10 +451,10 @@ Main plant(s): "${input}"
 ❌ Bad neighbors (with reasons)
 🌿 Pest-repelling companions
 🌱 Nitrogen fixers
-📐 Layout suggestion for small Malaysian garden
-🌺 Pollinator attractors available in Malaysia
-💰 Cost estimate in RM to setup companion bed
-🛒 Where to buy companion plants in Malaysia (Shopee, Lazada, nurseries)`);
+📐 Layout suggestion for a small garden bed
+🌺 Pollinator attractors (widely available species)
+💰 Typical cost range to set up a companion bed
+🛒 Where to buy companion plants (local nurseries, garden centres, online marketplaces)`);
       setResult(reply);
     } catch (e: any) { setError(e.message); }
     finally { setLoading(false); }
@@ -531,22 +541,22 @@ function CalendarTab() {
 
   async function generate() {
     setLoading(true); setError(""); setResult("");
-    const loc = location.trim() || "Kuching, Sarawak, Malaysia — tropical equatorial";
+    const loc = location.trim() || "not specified — give globally applicable guidance and note how it differs by hemisphere";
     try {
       const langName = LANGUAGES.find(l => l.code === lang)?.label || "English";
-      const reply = await askAI(`You are an expert agricultural calendar planner for tropical Malaysia.
-Respond in ${langName}. Prices in RM (MYR).
+      const reply = await askAI(`You are an expert agricultural calendar planner serving farmers worldwide.
+Respond in ${langName}. Use the local currency and the growing seasons of the location below (respect the hemisphere — planting months differ between north and south).
 
 Location: ${loc}
 
 12-month planting calendar. For each month:
 📅 Month
-🌱 What to PLANT (specific crops for this region)
+🌱 What to PLANT (specific crops for this region and climate)
 🌾 What to HARVEST
-🌧️ Weather/rainfall notes for Malaysia
+🌧️ Weather/rainfall notes for this region
 🐛 Pest/disease threats
 ✅ Key farm tasks
-💰 Estimated monthly input cost in RM`);
+💰 Estimated monthly input cost in the local currency`);
       setResult(reply);
     } catch (e: any) { setError(e.message); }
     finally { setLoading(false); }
@@ -558,7 +568,7 @@ Location: ${loc}
         <LangSelect value={lang} onChange={setLang} />
         <label className="flex text-sm font-medium mb-3 items-center gap-2"><Calendar className="w-4 h-4 text-emerald-400" />Your location</label>
         <input value={location} onChange={e => setLocation(e.target.value)}
-          placeholder="e.g., Kuching Sarawak / Penang / Cameron Highlands / KL..."
+          placeholder="e.g., Nairobi, Kenya / São Paulo, Brazil / Punjab, India / Iowa, USA..."
           className="w-full bg-background border border-border rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 mb-3" />
         <Button type="button" onClick={generate} disabled={loading} className="bg-emerald-500 hover:bg-emerald-600 text-white disabled:opacity-50">
           {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Calendar className="w-4 h-4 mr-2" />}

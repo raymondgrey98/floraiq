@@ -35,6 +35,34 @@ interface Store {
   tags: Record<string, string>;
   distance?: number;
   type: string;
+  score: number;
+}
+
+/**
+ * Best-market ranking for buying fertilizer and farm inputs.
+ * Relevance of the store type is weighed against travel distance, with a
+ * small boost for listings that publish contact/opening data (a proxy for
+ * an active, findable business). Works identically in all 196 countries —
+ * the data source is OpenStreetMap, not a regional directory.
+ */
+const TYPE_RELEVANCE: Record<string, number> = {
+  "Agriculture Supply":     1.0,  // dedicated agri input dealers — fertilizer certain
+  "Garden Centre":          0.9,
+  "Plant Nursery":          0.7,
+  "Hardware / Farm Supply": 0.55,
+  "Market":                 0.45, // general marketplaces — fertilizer possible
+  "Farm Supply":            0.6,
+};
+
+function scoreStore(type: string, distanceKm: number, tags: Record<string, string>): number {
+  const relevance = TYPE_RELEVANCE[type] ?? 0.5;
+  const infoBoost =
+    (tags.phone || tags["contact:phone"] ? 0.05 : 0) +
+    (tags.website || tags["contact:website"] ? 0.05 : 0) +
+    (tags.opening_hours ? 0.05 : 0);
+  // Inverse-distance weighting: a perfect store 20 km away should not beat
+  // a good one around the corner.
+  return (relevance + infoBoost) / (1 + distanceKm / 3);
 }
 
 const RADIUS_OPTIONS = [2, 5, 10, 25, 50];
@@ -113,13 +141,12 @@ export default function AgriStoreFinder() {
         setGpsLoading(false);
         fetchStores(coords[0], coords[1], radius);
       },
-      (err) => {
+      () => {
         setGpsLoading(false);
-        setError("GPS denied. Enable location permission and try again.");
-        // Default to Kuching, Sarawak
-        const kuching: [number, number] = [1.5497, 110.3592];
-        setUserPos(kuching);
-        fetchStores(kuching[0], kuching[1], radius);
+        // No regional fallback — this app serves all 196 countries. Without a
+        // pinpoint we cannot rank nearby markets, so ask for permission instead
+        // of silently teleporting the user somewhere they are not.
+        setError("Location permission needed to find markets near you. Enable it and tap refresh.");
       },
       { timeout: 10000, enableHighAccuracy: true }
     );
@@ -143,17 +170,22 @@ export default function AgriStoreFinder() {
         .map((el: any) => {
           const slat = el.lat || el.center?.lat;
           const slon = el.lon || el.center?.lon;
+          const tags = el.tags || {};
+          const type = getStoreType(tags);
+          const distance = calcDistance(lat, lon, slat, slon);
           return {
             id: el.id,
-            name: el.tags?.name || el.tags?.["name:en"] || el.tags?.["name:ms"] || getStoreType(el.tags || {}),
+            name: tags.name || tags["name:en"] || type,
             lat: slat,
             lon: slon,
-            tags: el.tags || {},
-            distance: calcDistance(lat, lon, slat, slon),
-            type: getStoreType(el.tags || {}),
+            tags,
+            distance,
+            type,
+            score: scoreStore(type, distance, tags),
           };
         })
-        .sort((a: Store, b: Store) => (a.distance || 0) - (b.distance || 0));
+        // Best market first: relevance-per-distance, not raw proximity
+        .sort((a: Store, b: Store) => b.score - a.score);
 
       setStores(results);
       setSearched(true);
@@ -174,7 +206,8 @@ export default function AgriStoreFinder() {
 
   useEffect(() => { getLocation(); }, []);
 
-  const mapCenter: [number, number] = userPos || [1.5497, 110.3592];
+  // Neutral world view until the user shares a pinpoint — no regional bias
+  const mapCenter: [number, number] = userPos || [20, 0];
 
   return (
     <div className="h-screen flex flex-col bg-background text-foreground overflow-hidden">
@@ -206,7 +239,7 @@ export default function AgriStoreFinder() {
       <div className="flex-1 relative">
         <MapContainer
           center={mapCenter}
-          zoom={12}
+          zoom={userPos ? 12 : 2}
           style={{ height: "100%", width: "100%" }}
           zoomControl={false}
         >
@@ -322,12 +355,17 @@ export default function AgriStoreFinder() {
           {stores.length > 0 && (
             <div className="bg-background/95 backdrop-blur-md border-t border-border/30 overflow-x-auto">
               <div className="flex gap-3 p-3 w-max">
-                {stores.slice(0, 15).map(store => (
+                {stores.slice(0, 15).map((store, idx) => (
                   <div
                     key={store.id}
                     onClick={() => setSelected(store === selected ? null : store)}
-                    className={`flex-shrink-0 w-64 glass rounded-xl p-3 border cursor-pointer transition-all ${selected?.id === store.id ? "border-emerald-500/70 bg-emerald-500/5" : "border-border/50 hover:border-emerald-500/30"}`}
+                    className={`relative flex-shrink-0 w-64 glass rounded-xl p-3 border cursor-pointer transition-all ${selected?.id === store.id ? "border-emerald-500/70 bg-emerald-500/5" : "border-border/50 hover:border-emerald-500/30"}`}
                   >
+                    {idx === 0 && (
+                      <span className="absolute -top-2 right-3 rounded-full bg-sunlight px-2 py-0.5 text-[9px] font-black tracking-wide text-primary-foreground shadow-[var(--shadow-lift)]">
+                        ⭐ BEST PICK
+                      </span>
+                    )}
                     <div className="flex items-start gap-2 mb-2">
                       <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: getStoreColor(store.type) + "22", border: `1px solid ${getStoreColor(store.type)}44` }}>
                         <span className="text-base">{store.type.includes("Nursery") ? "🌱" : store.type.includes("Garden") ? "🪴" : store.type.includes("Hardware") ? "🔧" : store.type.includes("Market") ? "🏪" : "🌾"}</span>

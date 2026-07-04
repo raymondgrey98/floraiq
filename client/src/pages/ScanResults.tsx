@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { X, Share2, Download, MapPin, Leaf, AlertTriangle, ExternalLink, Loader2, BookOpen, Youtube, Globe, Droplets, Sun, Thermometer, FlaskConical, Wind } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import ConfidenceRing from "@/components/ConfidenceRing";
+import ReferenceGallery from "@/components/ReferenceGallery";
 
 interface ScanResult {
   id?: number;
@@ -215,7 +217,7 @@ export default function ScanResults() {
                 </div>
                 {/* ID info */}
                 <div className="flex-1 min-w-0">
-                  <h2 className="text-2xl font-bold leading-tight">{name}</h2>
+                  <h2 className="font-display text-2xl font-semibold leading-tight" style={{ letterSpacing: "-0.01em" }}>{name}</h2>
                   <p className="text-sm italic text-muted-foreground mb-2">{result.scientificName}</p>
                   {aliases.length > 0 && (
                     <p className="text-xs text-muted-foreground mb-3">
@@ -224,19 +226,13 @@ export default function ScanResults() {
                     </p>
                   )}
                   <div className="flex flex-wrap gap-2 items-center">
-                    <div className="flex items-center gap-1.5">
-                      <div className="relative w-8 h-8">
-                        <svg className="w-8 h-8 -rotate-90" viewBox="0 0 32 32">
-                          <circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" strokeWidth="3" className="text-border/30" />
-                          <circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" strokeWidth="3" className="text-emerald-400" strokeDasharray={`${(confidence / 100) * 81.7} 81.7`} strokeLinecap="round" />
-                        </svg>
-                        <span className="absolute inset-0 flex items-center justify-center text-[8px] font-bold text-emerald-400">{confidence}%</span>
-                      </div>
-                      <span className="text-xs text-muted-foreground">Match</span>
-                    </div>
                     <span className={`text-xs font-bold px-2 py-1 rounded-full ${risk.bg} ${risk.text}`}>{risk.label}</span>
                     {result.scanMode && <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded-full capitalize">{result.scanMode}</span>}
                   </div>
+                </div>
+                {/* Animated confidence ring — number + word, never color alone */}
+                <div className="flex-shrink-0 self-center">
+                  <ConfidenceRing confidence={confidence} size={76} />
                 </div>
               </div>
 
@@ -252,6 +248,9 @@ export default function ScanResults() {
                 </a>
               </div>
             </div>
+
+            {/* ── VERIFIED REFERENCE PHOTOS — compare against the user's shot ── */}
+            <ReferenceGallery scientificName={result.scientificName} userPhotoUrl={result.photoUrl} />
 
             {/* ── CARE SUMMARY CARDS — PictureThis style ── */}
             <div className="glass rounded-2xl border border-border/40 p-5">

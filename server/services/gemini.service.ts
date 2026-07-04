@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 // ── Typed interfaces ──────────────────────────────────────────────────────────
 
@@ -64,7 +64,7 @@ const HISTORY_WINDOW = 20; // messages to fetch from DB per session
 export class GeminiService {
   private readonly apiKey: string;
   private readonly openRouterKey: string;
-  private readonly supabase: ReturnType<typeof createClient> | null;
+  private readonly supabase: SupabaseClient<any> | null;
 
   constructor() {
     this.apiKey       = process.env.GEMINI_API_KEY      || "";
@@ -73,7 +73,7 @@ export class GeminiService {
     const url     = process.env.SUPABASE_URL      || process.env.VITE_SUPABASE_URL      || "";
     const secret  = process.env.SUPABASE_SECRET_KEY || "";
 
-    this.supabase = url && secret ? createClient(url, secret) : null;
+    this.supabase = url && secret ? createClient<any>(url, secret) : null;
   }
 
   // ── Public: session-aware chat ──────────────────────────────────────────────
