@@ -1,0 +1,75 @@
+name: Android APK
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build debug APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm check
+
+      - name: Build web assets
+        run: pnpm build
+
+      - name: Sync Capacitor Android project
+        run: npx cap sync android
+
+      - name: Build APK
+        run: |
+          chmod +x android/gradlew
+          cd android
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Rename APK
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk FloraIQ-debug.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: FloraIQ-debug-apk
+          path: FloraIQ-debug.apk
+          retention-days: 30
+
+      # Publishes/refreshes a downloadable release so the APK can be installed
+      # straight from a phone browser (Actions artifacts require a desktop login).
+      - name: Publish APK to 'apk-latest' release
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete apk-latest --cleanup-tag --yes || true
+          gh release create apk-latest FloraIQ-debug.apk \
+            --target "$GITHUB_SHA" \
+            --prerelease \
+            --title "FloraIQ Android APK (latest build)" \
+            --notes "Debug APK built from \`$GITHUB_SHA\`. Download \`FloraIQ-debug.apk\` on your Android phone and open it to install (allow 'install from unknown sources' when prompted). If a previous build is already installed, uninstall it first — debug signatures differ between CI runs."

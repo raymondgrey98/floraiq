@@ -14,8 +14,8 @@ export default function App() {
   const [currentPage, setCurrentPage] = useState<Page>('home')
   const [lastIdentification, setLastIdentification] = useState<any>(null)
 
-  const handleNavigate = (page: Page) => {
-    setCurrentPage(page)
+  const handleNavigate = (page: string) => {
+    setCurrentPage(page as Page)
   }
 
   return (

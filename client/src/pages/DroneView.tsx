@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type JSX } from "react";
 import { Link } from "wouter";
 import {
   MapContainer, TileLayer, Circle, Polygon, Tooltip, useMapEvents, useMap
