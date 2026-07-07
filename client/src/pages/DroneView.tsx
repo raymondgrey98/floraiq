@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type ReactElement } from "react";
 import { Link } from "wouter";
 import {
   MapContainer, TileLayer, Circle, Polygon, Tooltip, useMapEvents, useMap
@@ -161,7 +161,7 @@ function ZoomCtrl() {
 }
 
 // ─── Mode config ───────────────────────────────────────────────────────────
-const MODES: { key: OverlayMode; icon: JSX.Element; label: string; unit: string }[] = [
+const MODES: { key: OverlayMode; icon: ReactElement; label: string; unit: string }[] = [
   { key:"HEALTH",    icon:<Leaf size={15} />,            label:"Plant Health",      unit:"index" },
   { key:"DISEASE",   icon:<Bug size={15} />,             label:"Disease Risk",       unit:"risk"  },
   { key:"DIVERSITY", icon:<Binoculars size={15} />,      label:"Biodiversity",       unit:"score" },

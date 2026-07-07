@@ -14,10 +14,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, Share2, Droplets, Sun, Thermometer, Wind,
   MapPin, ExternalLink, AlertTriangle, CheckCircle, AlertCircle,
-  Leaf, FlaskConical, Globe,
+  Leaf, FlaskConical, Globe, Sprout, Check, SearchX,
 } from "lucide-react";
+import { toast } from "sonner";
 import { useWorkstation, type PlantIdentificationResult } from "@/context/WorkstationContext";
 import { useSoundEffect } from "@/hooks/useSoundEffect";
+import { requestNotificationPermission, scheduleWaterReminder } from "@/lib/notifications";
 
 // ── Risk config ───────────────────────────────────────────────────────────────
 const RISK: Record<string, { label: string; color: string; bg: string; Icon: typeof CheckCircle }> = {
@@ -45,6 +47,35 @@ async function shareResult(result: PlantIdentificationResult) {
   } else {
     await navigator.clipboard.writeText(text);
   }
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+// The vision model sometimes returns a long apology sentence in `scientificName`
+// instead of a binomial when it can't identify. Detect that so we show a clean
+// "no confident match" state rather than dumping the sentence as the title.
+function isUnidentified(result: PlantIdentificationResult): boolean {
+  const sci = (result.scientificName ?? "").trim();
+  if (!sci || sci === "Unknown species") return true;
+  if (sci.split(/\s+/).length > 4 || sci.length > 40) return true;
+  return /cannot|unable|insufficient|no match|not be identif|unidentif/i.test(sci);
+}
+
+// Shrink a data URL to a small JPEG so saving to localStorage never overflows.
+function resizeDataURL(dataURL: string, maxPx: number): Promise<string> {
+  return new Promise(res => {
+    if (!dataURL) { res(""); return; }
+    const img = new Image();
+    img.onload = () => {
+      const scale  = Math.min(maxPx / img.width, maxPx / img.height, 1);
+      const canvas = document.createElement("canvas");
+      canvas.width  = Math.round(img.width  * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+      res(canvas.toDataURL("image/jpeg", 0.7));
+    };
+    img.onerror = () => res("");
+    img.src = dataURL;
+  });
 }
 
 // ── Tab: Analysis ─────────────────────────────────────────────────────────────
@@ -287,6 +318,7 @@ export default function ObservationWorkspace() {
   const [, setLocation] = useLocation();
   const { activeScanResult, clearScan } = useWorkstation();
   const [activeTab, setActiveTab] = useState<Tab>("Analysis");
+  const [added, setAdded] = useState(false);
   const sound = useSoundEffect();
 
   // Redirect if context is empty (direct URL access or state cleared)
@@ -296,10 +328,13 @@ export default function ObservationWorkspace() {
 
   if (!activeScanResult) return null;
 
-  const result     = activeScanResult;
-  const confidence = Math.round((result.confidence ?? 0) * 100);
-  const risk       = RISK[result.riskLevel ?? "safe"];
-  const commonName = result.commonNames?.en ?? result.scientificName;
+  const result       = activeScanResult;
+  const unidentified = isUnidentified(result);
+  const confidence   = Math.round((result.confidence ?? 0) * 100);
+  const risk         = RISK[result.riskLevel ?? "safe"];
+  const commonName   = result.commonNames?.en ?? result.scientificName;
+  const displayName  = unidentified ? "No confident match" : commonName;
+  const displaySci   = unidentified ? "Try a closer, sharper photo of a single subject" : result.scientificName;
 
   function handleBack() {
     setLocation("/");
@@ -308,6 +343,42 @@ export default function ObservationWorkspace() {
   function handleRescan() {
     clearScan();
     setLocation("/scan");
+  }
+
+  // One-tap "Add to My Garden" — writes into the same store MyGarden/WaterTracker read,
+  // with sensible care defaults and a scheduled watering reminder.
+  async function saveToGarden() {
+    if (added) return;
+    try {
+      const photo = result.photoUrl ? await resizeDataURL(result.photoUrl, 220) : undefined;
+      const id    = Date.now().toString();
+      const plant = {
+        id,
+        name:               commonName,
+        species:            result.scientificName,
+        photo,
+        waterEveryDays:     3,
+        lastWatered:        new Date().toISOString(),
+        fertilizeEveryDays: 30,
+        lastFertilized:     new Date().toISOString(),
+        repotEveryMonths:   12,
+        lastRepotted:       new Date().toISOString(),
+        notes:              result.careInstructions?.watering ? `Watering: ${result.careInstructions.watering}` : undefined,
+      };
+      const raw  = localStorage.getItem("floraiq_water_tracker");
+      const list = raw ? JSON.parse(raw) : [];
+      list.push(plant);
+      localStorage.setItem("floraiq_water_tracker", JSON.stringify(list));
+      setAdded(true);
+      sound("tab");
+      toast.success(`${commonName} added to My Garden`, { description: "Watering reminder scheduled." });
+      const granted = await requestNotificationPermission();
+      if (granted) {
+        await scheduleWaterReminder({ id: parseInt(id.slice(-6)), plantName: commonName, daysFromNow: 3 });
+      }
+    } catch {
+      toast.error("Couldn't save to garden — storage may be full.");
+    }
   }
 
   return (
@@ -353,7 +424,8 @@ export default function ObservationWorkspace() {
           </button>
         </div>
 
-        {/* Confidence badge — absolute top-right of image area */}
+        {/* Confidence badge — absolute top-right of image area (hidden when no match) */}
+        {!unidentified && (
         <motion.div
           initial={{ scale: 0, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -377,18 +449,30 @@ export default function ObservationWorkspace() {
             </span>
           </div>
         </motion.div>
+        )}
 
         {/* Species identity — bottom of image */}
         <div className="absolute bottom-0 left-0 right-0 p-5 z-10">
-          {/* Risk inline */}
-          <div
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full mb-3"
-            style={{ background: risk.bg, border: `1px solid ${risk.color}40` }}>
-            <risk.Icon size={10} color={risk.color} />
-            <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: risk.color }}>
-              {risk.label}
-            </span>
-          </div>
+          {/* Risk inline (or "no match" pill when unidentified) */}
+          {unidentified ? (
+            <div
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full mb-3"
+              style={{ background: "rgba(148,163,184,0.12)", border: "1px solid rgba(148,163,184,0.35)" }}>
+              <SearchX size={10} color="#94a3b8" />
+              <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: "#94a3b8" }}>
+                No Match
+              </span>
+            </div>
+          ) : (
+            <div
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full mb-3"
+              style={{ background: risk.bg, border: `1px solid ${risk.color}40` }}>
+              <risk.Icon size={10} color={risk.color} />
+              <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: risk.color }}>
+                {risk.label}
+              </span>
+            </div>
+          )}
 
           <motion.h1
             initial={{ opacity: 0, y: 10 }}
@@ -396,21 +480,37 @@ export default function ObservationWorkspace() {
             transition={{ duration: 0.4 }}
             className="font-black leading-tight mb-1"
             style={{ fontSize: "clamp(1.4rem,5vw,2rem)" }}>
-            {commonName}
+            {displayName}
           </motion.h1>
 
           <p className="text-sm italic mb-4" style={{ color: "rgba(255,255,255,0.45)" }}>
-            {result.scientificName}
+            {displaySci}
           </p>
 
-          {/* Rescan button */}
-          <button
-            type="button"
-            onClick={handleRescan}
-            className="text-xs font-bold px-4 py-2 rounded-full transition-opacity hover:opacity-70"
-            style={{ background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.3)", color: "#34d399" }}>
-            Scan again
-          </button>
+          {/* Actions */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {!unidentified && (
+              <button
+                type="button"
+                onClick={saveToGarden}
+                disabled={added}
+                className="flex items-center gap-1.5 text-xs font-bold px-4 py-2 rounded-full transition-all disabled:cursor-default"
+                style={
+                  added
+                    ? { background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.4)", color: "#34d399" }
+                    : { background: "linear-gradient(135deg,#059669,#10b981)", border: "1px solid rgba(16,185,129,0.5)", color: "white", boxShadow: "0 4px 16px rgba(16,185,129,0.35)" }
+                }>
+                {added ? <><Check size={13} />In My Garden</> : <><Sprout size={13} />Add to My Garden</>}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={handleRescan}
+              className="text-xs font-bold px-4 py-2 rounded-full transition-opacity hover:opacity-70"
+              style={{ background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.3)", color: "#34d399" }}>
+              Scan again
+            </button>
+          </div>
         </div>
       </div>
 

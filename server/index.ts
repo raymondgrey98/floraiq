@@ -50,7 +50,21 @@ async function startServer() {
     res.sendFile(path.join(staticPath, "index.html"));
   });
 
-  const port = process.env.PORT || 7171;
+  // Dev: always 7171 (the Vite proxy target) — a stray PORT env var (e.g. set by
+  // preview harnesses to 3000) would otherwise collide with Vite and kill the API.
+  // Production: respect PORT for deployment platforms.
+  const port =
+    process.env.NODE_ENV === "production"
+      ? process.env.PORT || 7171
+      : process.env.BACKEND_PORT || 7171;
+
+  server.on("error", (err: NodeJS.ErrnoException) => {
+    if (err.code === "EADDRINUSE") {
+      console.error(`[FloraIQ] Port ${port} is already in use — is another dev server running?`);
+      process.exit(1);
+    }
+    throw err;
+  });
 
   server.listen(port, () => {
     console.log(`

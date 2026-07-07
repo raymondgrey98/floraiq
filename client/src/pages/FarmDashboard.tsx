@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactElement } from "react";
 import { Link } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -40,7 +40,7 @@ const PRIORITY_COLORS: Record<Priority, string> = {
   Low:    "bg-blue-500/15 text-blue-400 border-blue-500/25",
 };
 
-const STATUS_ICON: Record<Status, JSX.Element> = {
+const STATUS_ICON: Record<Status, ReactElement> = {
   planned:    <CalendarBlank size={12} />,
   inprogress: <Clock size={12} />,
   completed:  <CheckCircle size={12} className="text-emerald-400" />,

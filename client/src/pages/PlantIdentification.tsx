@@ -171,7 +171,7 @@ export default function PlantIdentification() {
           await fetch('/api/location/sync', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ plantIdentification: result, location: coords, userId: 'current_user' }),
+            body: JSON.stringify({ plantIdentification: result, location, userId: 'current_user' }),
           });
         } catch {}
       }

@@ -13,9 +13,9 @@ const STATS = [
 const FEATURES = [
   { icon:"📷", title:"AI Organism Scanner", desc:"Point your camera at any plant, insect, bird, or fungi. FloraIQ identifies it in seconds using vision AI — trained on millions of global species." },
   { icon:"🔬", title:"Disease Diagnosis", desc:"Diagnose 38 plant diseases from a leaf photo. AI trained by HuggingFace models detects infections before they kill your crop." },
-  { icon:"🌿", title:"Care Intelligence", desc:"Every scan returns personalised care — watering schedule, soil type, sunlight needs, fertilizer dose. Tailored for Malaysia's tropical climate." },
+  { icon:"🌿", title:"Care Intelligence", desc:"Every scan returns personalised care — watering schedule, soil type, sunlight needs, fertilizer dose. Tailored to your local climate." },
   { icon:"🗺️", title:"Global Species Map", desc:"Live GBIF occurrence data. See where any species has been spotted worldwide — 1 billion+ occurrence records from 196 countries." },
-  { icon:"🐝", title:"Biodiversity Intelligence", desc:"Wildlife guides covering spiders, reptiles, birds, marine life, nocturnal animals, insects — all with Borneo and Malaysian focus." },
+  { icon:"🐝", title:"Biodiversity Intelligence", desc:"Wildlife guides covering spiders, reptiles, birds, marine life, nocturnal animals, insects — covering every region on Earth." },
   { icon:"🌾", title:"Farm Management Suite", desc:"13-tab farm planner with crop rotation, irrigation calculator, harvest predictor, market prices in RM, and pest control guides." },
   { icon:"🏕️", title:"Survival & Wilderness", desc:"Jungle shelter building, water purification, edible wild plants, nature navigation. Built for Borneo's rainforest — works anywhere." },
   { icon:"🐟", title:"Aquaponics & Sustainable Farming", desc:"Complete guides for aquaponics, vermicomposting, kelulut beekeeping, and integrated farming systems for small-scale producers." },
@@ -29,10 +29,10 @@ const ROADMAP = [
 ];
 
 const MISSION_PILLARS = [
-  { icon:"🌍", title:"Global from Day 1", desc:"Built for Malaysia but designed for 196 countries. All species data is global — GBIF covers every nation on Earth." },
+  { icon:"🌍", title:"Global from Day 1", desc:"Designed for 196 countries from day one. All species data is global — GBIF covers every nation on Earth." },
   { icon:"🔬", title:"Science-Grade Data", desc:"Every fact is sourced from peer-reviewed databases: GBIF, iNaturalist, Kew Gardens, IUCN, EOL, Wikipedia, and HuggingFace AI." },
   { icon:"💚", title:"Free Forever Core", desc:"The core tools — scan, identify, care guide, maps — remain free. We believe nature intelligence should be accessible to everyone." },
-  { icon:"🏝️", title:"Tropical First", desc:"Most apps are built for temperate climate. FloraIQ is built for tropical biodiversity — Malaysia, Borneo, Southeast Asia, and beyond." },
+  { icon:"🏝️", title:"Tropical First", desc:"Most apps are built for temperate climate. FloraIQ is built for every biome — tropical, temperate, arid, alpine." },
 ];
 
 export default function AboutFloraIQ() {

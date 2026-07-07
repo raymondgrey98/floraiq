@@ -1,0 +1,61 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Codemagic CI/CD — builds the FloraIQ iPhone app in the cloud. NO MAC NEEDED.
+# Same FloraIQ code as Android (Capacitor) → real .ipa for TestFlight / App Store.
+#
+# ONE-TIME SETUP (in the Codemagic web UI — https://codemagic.io):
+#   1. Sign up (free tier available) and connect this Git repo.
+#   2. Apple Developer account ($99/yr) is required by Apple for any iOS build.
+#   3. Teams → Integrations → App Store Connect: add an API key, name it
+#      exactly "CodemagicAppStoreKey" (or change the name below to match).
+#   4. Replace APP_STORE_APPLE_ID below with your app's numeric Apple ID
+#      (created in App Store Connect; only needed once you make the app record).
+#   5. Push this file, then run the "ios-floraiq" workflow from the dashboard.
+#
+# The bundle id (com.floraiq.app) matches capacitor.config.ts.
+# ─────────────────────────────────────────────────────────────────────────────
+workflows:
+  ios-floraiq:
+    name: FloraIQ iOS
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    integrations:
+      app_store_connect: CodemagicAppStoreKey
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.floraiq.app
+      vars:
+        XCODE_WORKSPACE: "ios/App/App.xcworkspace"
+        XCODE_SCHEME: "App"
+        # APP_STORE_APPLE_ID: 0000000000   # uncomment + set once the App Store record exists
+      node: 20
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Install dependencies
+        script: |
+          npm install -g pnpm
+          pnpm install
+      - name: Build web assets + sync iOS
+        script: |
+          pnpm build
+          # First run scaffolds the native iOS project; later runs just sync.
+          if [ ! -d "ios" ]; then
+            pnpm add @capacitor/ios
+            npx cap add ios
+          fi
+          npx cap sync ios
+      - name: Set up provisioning profiles
+        script: xcode-project use-profiles
+      - name: Build signed .ipa
+        script: |
+          xcode-project build-ipa \
+            --workspace "$XCODE_WORKSPACE" \
+            --scheme "$XCODE_SCHEME"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true   # set false if you only want the .ipa artifact

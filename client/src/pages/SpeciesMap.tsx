@@ -101,11 +101,52 @@ export default function SpeciesMap() {
   useEffect(() => {
     if (!mapDivRef.current || mapRef.current) return;
 
-    const map = L.map(mapDivRef.current, { center: [20, 0], zoom: 2, zoomControl: true });
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: '© <a href="https://openstreetmap.org">OpenStreetMap</a>',
-      maxZoom: 18,
-    }).addTo(map);
+    const map = L.map(mapDivRef.current, {
+      center: [20, 0],
+      zoom: 2,
+      minZoom: 2,
+      zoomControl: true,
+      worldCopyJump: true,          // markers wrap cleanly across the antimeridian
+      maxBounds: [[-85, -180], [85, 180]],
+      maxBoundsViscosity: 0.8,
+    });
+
+    // ── Base layers — ArcGIS-style global imagery switcher ──
+    const street = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "© OpenStreetMap", maxZoom: 19,
+    });
+    const satellite = L.tileLayer(
+      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      { attribution: "Esri · Maxar · Earthstar Geographics", maxZoom: 19 },
+    );
+    const terrain = L.tileLayer(
+      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
+      { attribution: "Esri · USGS · NOAA", maxZoom: 19 },
+    );
+    const ocean = L.tileLayer(
+      "https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}",
+      { attribution: "Esri · GEBCO · NOAA", maxZoom: 13 },
+    );
+    // NASA GIBS — Blue Marble (true global satellite mosaic from MODIS)
+    const nasa = L.tileLayer(
+      "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_ShadedRelief_Bathymetry/default/500m/{z}/{y}/{x}.jpeg",
+      { attribution: "NASA EOSDIS GIBS · Blue Marble", maxZoom: 8 },
+    );
+
+    satellite.addTo(map); // default: high-end satellite view, like ArcGIS
+
+    L.control.layers(
+      {
+        "Satellite (Esri)": satellite,
+        "Street (OSM)": street,
+        "Terrain (Esri)": terrain,
+        "Ocean floor": ocean,
+        "NASA Blue Marble": nasa,
+      },
+      undefined,
+      { position: "topright", collapsed: true },
+    ).addTo(map);
+
     markersRef.current = L.layerGroup().addTo(map);
     mapRef.current = map;
 

@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Droplets, Plus, Trash2, CheckCircle, Clock, AlertCircle, Leaf, ChevronLeft, Bell, BellOff } from "lucide-react";
+import { Droplets, Plus, Trash2, CheckCircle, Clock, AlertCircle, Leaf, ChevronLeft, Bell, BellOff, CloudRain, ThermometerSun, Snowflake, CloudSun } from "lucide-react";
 import { requestNotificationPermission, scheduleWaterReminder, cancelNotification, sendImmediateNotification } from "@/lib/notifications";
+import { getWeatherCare, getCachedWeatherCare, getPosition, type WeatherCare } from "@/lib/weather-care";
 
 interface TrackedPlant {
   id: string;
@@ -46,6 +47,7 @@ export default function WaterTracker() {
   const [filter, setFilter]         = useState<"all" | "urgent" | "ok">("all");
   const [notifEnabled, setNotifEnabled] = useState(false);
   const [notifMsg, setNotifMsg]     = useState("");
+  const [weather, setWeather]       = useState<WeatherCare | null>(null);
   const [form, setForm]             = useState({
     name: "", species: "", waterEveryDays: 3, notes: "", location: "",
   });
@@ -57,6 +59,12 @@ export default function WaterTracker() {
       const n = localStorage.getItem("floraiq_notif_enabled");
       if (n === "true") setNotifEnabled(true);
     } catch {}
+    // Weather-aware care: rain coming → skip outdoor watering, heatwave → water more.
+    // Falls back to the last cached forecast when GPS is denied or device is offline.
+    getPosition().then(pos => {
+      if (pos) getWeatherCare(pos.lat, pos.lon).then(w => setWeather(w ?? getCachedWeatherCare()));
+      else setWeather(getCachedWeatherCare());
+    });
   }, []);
 
   async function toggleNotifications() {
@@ -188,6 +196,29 @@ export default function WaterTracker() {
             {notifMsg}
           </div>
         )}
+
+        {/* Weather-aware care banner */}
+        {weather && (
+          <div className={`mb-4 rounded-xl border p-4 glass ${
+            weather.rainExpected ? "border-sky-500/40" :
+            weather.heatwave     ? "border-orange-500/40" :
+            weather.frostRisk    ? "border-cyan-500/40" : "border-border/50"
+          }`}>
+            <div className="flex items-center gap-2 mb-2">
+              {weather.rainExpected ? <CloudRain className="w-5 h-5 text-sky-400" /> :
+               weather.heatwave     ? <ThermometerSun className="w-5 h-5 text-orange-400" /> :
+               weather.frostRisk    ? <Snowflake className="w-5 h-5 text-cyan-300" /> :
+                                      <CloudSun className="w-5 h-5 text-emerald-400" />}
+              <h3 className="font-semibold text-sm">Smart Watering — Weather Check</h3>
+              <span className="ml-auto text-xs text-muted-foreground">{weather.condition}, {Math.round(weather.todayMaxC)}°C</span>
+            </div>
+            <ul className="space-y-1">
+              {weather.advice.map((a, i) => (
+                <li key={i} className="text-xs text-muted-foreground">• {a}</li>
+              ))}
+            </ul>
+          </div>
+        )}
         {/* Add plant form */}
         {showForm && (
           <div className="fixed inset-0 z-50 bg-black/70 flex items-end sm:items-center justify-center p-4"
@@ -314,6 +345,17 @@ export default function WaterTracker() {
                       {plant.location && <span>📍 {plant.location}</span>}
                       {plant.notes && <span className="truncate">📝 {plant.notes}</span>}
                     </div>
+
+                    {weather?.rainExpected && status.urgent && (
+                      <p className="text-xs text-sky-400 mt-1 flex items-center gap-1">
+                        <CloudRain className="w-3 h-3" />Rain tomorrow — skip if this plant is outdoors
+                      </p>
+                    )}
+                    {weather?.heatwave && (
+                      <p className="text-xs text-orange-400 mt-1 flex items-center gap-1">
+                        <ThermometerSun className="w-3 h-3" />Heat today — give extra water, early morning
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -360,7 +402,7 @@ export default function WaterTracker() {
           <ul className="space-y-1.5 text-xs text-muted-foreground">
             <li>• Water in the morning to reduce evaporation</li>
             <li>• Check soil moisture before watering — stick finger 2cm deep</li>
-            <li>• Tropical plants (Malaysia) generally need more water</li>
+            <li>• Plants in tropical climates generally need more water</li>
             <li>• Reduce watering during rainy season</li>
             <li>• Yellow leaves = overwatering, wilting = underwatering</li>
           </ul>

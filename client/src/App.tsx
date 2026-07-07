@@ -20,6 +20,7 @@ import History from "./pages/History";
 import Profile from "./pages/Profile";
 import AdminDashboard from "./pages/AdminDashboard";
 import Chatbot from "./components/Chatbot";
+import CommandPalette from "./components/CommandPalette";
 import BottomNav from "./components/BottomNav";
 import ScanResults from "./pages/ScanResults";
 import FarmFinance from "./pages/FarmFinance";
@@ -89,6 +90,9 @@ import LandMapper from "./pages/LandMapper";
 import DroneView from "./pages/DroneView";
 import SoundID from "./pages/SoundID";
 import SmartGuide from "./pages/SmartGuide";
+import ScanStats from "./pages/ScanStats";
+import MyGarden from "./pages/MyGarden";
+import VoiceCommands from "./components/VoiceCommands";
 
 function Router() {
   return (
@@ -175,6 +179,8 @@ function Router() {
       <Route path={"/landmap"} component={LandMapper} />
       <Route path={"/droneview"} component={DroneView} />
       <Route path={"/soundid"} component={SoundID} />
+      <Route path={"/stats"} component={ScanStats} />
+      <Route path={"/garden"} component={MyGarden} />
       <Route path={"/guide/:slug"} component={SmartGuide} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
@@ -191,7 +197,9 @@ function App() {
           <TooltipProvider>
             <Toaster richColors position="top-center" />
             <Router />
+            <CommandPalette />
             <Chatbot />
+            <VoiceCommands />
             <BottomNav />
           </TooltipProvider>
         </ThemeProvider>

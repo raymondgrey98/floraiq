@@ -21,7 +21,6 @@ const CITY_COORDS: Record<string, { lat: number; lon: number; tz: string }> = {
   "Hanoi": { lat: 21.03, lon: 105.85, tz: "Asia/Bangkok" },
   "Colombo": { lat: 6.93, lon: 79.85, tz: "Asia/Colombo" },
   "Karachi": { lat: 24.86, lon: 67.01, tz: "Asia/Karachi" },
-  "Lagos": { lat: 6.52, lon: 3.38, tz: "Africa/Lagos" },
   "London": { lat: 51.51, lon: -0.13, tz: "Europe/London" },
   "New York": { lat: 40.71, lon: -74.01, tz: "America/New_York" },
   "Sydney": { lat: -33.87, lon: 151.21, tz: "Australia/Sydney" },

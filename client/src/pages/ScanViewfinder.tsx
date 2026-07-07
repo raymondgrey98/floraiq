@@ -12,10 +12,16 @@ import { useLocation } from "wouter";
 import { motion } from "framer-motion";
 import { useWorkstation } from "@/context/WorkstationContext";
 import { useSoundEffect } from "@/hooks/useSoundEffect";
+import { Capacitor } from "@capacitor/core";
+import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
 import {
   Leaf, Bug, Bird, Fish, Skull, Sprout, Waves, AlertTriangle,
   Upload, ArrowLeft,
 } from "lucide-react";
+
+// On a real phone (Capacitor) we use the native camera for a reliable, premium
+// capture; in the browser we fall back to the in-page getUserMedia viewfinder.
+const IS_NATIVE = Capacitor.isNativePlatform();
 
 const MODES = [
   { id: "plant",    label: "Plant",    Icon: Leaf,          grad: "from-emerald-500 to-green-700"  },
@@ -39,8 +45,9 @@ export default function ScanViewfinder() {
   const { setActiveScanBlob, setActiveScanMode } = useWorkstation();
   const sound = useSoundEffect();
 
-  // ── Init camera ─────────────────────────────────────────────────────────────
+  // ── Init camera (web only — native uses the OS camera on demand) ────────────
   useEffect(() => {
+    if (IS_NATIVE) return;
     let mounted = true;
 
     async function startCamera() {
@@ -87,6 +94,26 @@ export default function ScanViewfinder() {
       setLocation("/scan/processing");
     }, "image/jpeg", 0.85);
   }, [streamActive, selectedMode, setActiveScanBlob, setActiveScanMode, setLocation]);
+
+  // ── Native capture (Capacitor) — opens the OS camera, returns a JPEG ────────
+  const captureNative = useCallback(async () => {
+    try {
+      sound("capture");
+      const photo = await Camera.getPhoto({
+        quality: 85,
+        resultType: CameraResultType.Uri,
+        source: CameraSource.Camera,
+        correctOrientation: true,
+      });
+      if (!photo.webPath) return;
+      const blob = await (await fetch(photo.webPath)).blob();
+      setActiveScanMode(selectedMode);
+      setActiveScanBlob(blob);
+      setLocation("/scan/processing");
+    } catch {
+      // user cancelled the camera or permission denied — stay on this screen
+    }
+  }, [selectedMode, setActiveScanBlob, setActiveScanMode, setLocation, sound]);
 
   // ── Upload fallback ─────────────────────────────────────────────────────────
   const handleUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -203,17 +230,19 @@ export default function ScanViewfinder() {
       {/* ── CAPTURE BUTTON ──────────────────────────────────────────────────── */}
       <div className="relative z-10 flex flex-col items-center pb-safe pb-12 mt-auto px-6">
         <p className="text-white/40 text-xs mb-6 text-center">
-          Centre the subject inside the guide. Tap to identify.
+          {IS_NATIVE
+            ? "Tap the shutter to open your camera."
+            : "Centre the subject inside the guide. Tap to identify."}
         </p>
         <motion.button
           type="button"
-          onClick={captureFrame}
-          disabled={!streamActive}
+          onClick={IS_NATIVE ? captureNative : captureFrame}
+          disabled={!IS_NATIVE && !streamActive}
           whileTap={{ scale: 0.92 }}
           className="w-20 h-20 rounded-full flex items-center justify-center border-4 border-emerald-950/60 disabled:opacity-40"
           style={{
             background: "linear-gradient(135deg,#059669,#10b981)",
-            boxShadow: streamActive ? "0 0 28px rgba(16,185,129,0.6), 0 0 56px rgba(16,185,129,0.3)" : "none",
+            boxShadow: (IS_NATIVE || streamActive) ? "0 0 28px rgba(16,185,129,0.6), 0 0 56px rgba(16,185,129,0.3)" : "none",
           }}>
           <div className="w-14 h-14 rounded-full border-2 border-white/30 flex items-center justify-center">
             <div className="w-10 h-10 rounded-full bg-white/20" />

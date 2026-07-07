@@ -1,5 +1,7 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback, forwardRef } from "react";
 import { Link } from "wouter";
+import AmbientParticles from "@/components/AmbientParticles";
+import { getDaytime } from "@/lib/daytime";
 import { motion, AnimatePresence } from "framer-motion";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -7,9 +9,24 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 gsap.registerPlugin(ScrollTrigger);
 import {
   MagnifyingGlass, Bell, Plus, ArrowRight, Leaf, Bug, Bird, Fish,
-  Skull, Flower, Tree, Butterfly, Camera, Compass, Drop,
+  Skull, Flower, Tree, Camera, Compass, Drop,
   FirstAidKit, MapTrifold, Flask, Microphone,
+  type Icon, type IconProps,
 } from "@phosphor-icons/react";
+
+// ─── custom icons ───────────────────────────────────────────────────────────────
+// Phosphor has no mushroom glyph, so we ship our own (same Icon API as Phosphor)
+// for the Fungus identify mode.
+const Mushroom: Icon = forwardRef<SVGSVGElement, IconProps>(
+  ({ size = 24, color = "currentColor" }, ref) => (
+    <svg ref={ref} width={size} height={size} viewBox="0 0 256 256" fill={color} xmlns="http://www.w3.org/2000/svg">
+      <path d="M128 40C82 40 44 78 44 124a8 8 0 0 0 8 8h152a8 8 0 0 0 8-8C212 78 174 40 128 40Z M112 132h32v44a16 16 0 0 1-32 0Z" />
+      <circle cx="102" cy="94" r="9" fill="#0a0a0a" opacity="0.3" />
+      <circle cx="152" cy="82" r="7" fill="#0a0a0a" opacity="0.3" />
+      <circle cx="128" cy="110" r="6" fill="#0a0a0a" opacity="0.3" />
+    </svg>
+  ),
+);
 
 // ─── hooks ────────────────────────────────────────────────────────────────────
 function useWeather() {
@@ -60,18 +77,18 @@ const ARTICLES = [
   { title: "How to tell if a mushroom is safe to eat",         tag: "Safety",     tagColor: "#f59e0b", href: "/mushroom", img: "https://images.unsplash.com/photo-1504256934049-1f21d97aba3e?w=400&q=80" },
   { title: "10 wild plants you can eat anywhere in the world", tag: "Foraging",   tagColor: "#10b981", href: "/edible",   img: "https://images.unsplash.com/photo-1542621334-a254cf47733d?w=400&q=80" },
   { title: "Why your plant has yellow leaves — 6 real causes", tag: "Care",       tagColor: "#38bdf8", href: "/disease",  img: "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400&q=80" },
-  { title: "Kelulut honey — the superfood from Borneo bees",   tag: "Beekeeping", tagColor: "#fbbf24", href: "/wildbees", img: "https://images.unsplash.com/photo-1587049352846-4a222e784d38?w=400&q=80" },
+  { title: "Stingless bee honey — a global natural superfood",  tag: "Beekeeping", tagColor: "#fbbf24", href: "/wildbees", img: "https://images.unsplash.com/photo-1587049352846-4a222e784d38?w=400&q=80" },
 ];
 
-const CATEGORIES = [
-  { Icon: Leaf,      label: "Plants",   href: "/scan",      grad: "linear-gradient(135deg,#059669,#052e16)", glow: "rgba(16,185,129,0.65)" },
-  { Icon: Bug,       label: "Insects",  href: "/pest",      grad: "linear-gradient(135deg,#d97706,#78350f)", glow: "rgba(245,158,11,0.65)" },
-  { Icon: Bird,      label: "Birds",    href: "/birds",     grad: "linear-gradient(135deg,#2563eb,#1e3a8a)", glow: "rgba(59,130,246,0.65)" },
-  { Icon: Fish,      label: "Marine",   href: "/marine",    grad: "linear-gradient(135deg,#0891b2,#164e63)", glow: "rgba(6,182,212,0.65)"  },
-  { Icon: Skull,     label: "Toxic",    href: "/toxic",     grad: "linear-gradient(135deg,#dc2626,#7f1d1d)", glow: "rgba(239,68,68,0.65)"  },
-  { Icon: Flower,    label: "Flowers",  href: "/flower",    grad: "linear-gradient(135deg,#db2777,#701a75)", glow: "rgba(236,72,153,0.65)" },
-  { Icon: Tree,      label: "Trees",    href: "/bark",      grad: "linear-gradient(135deg,#16a34a,#052e16)", glow: "rgba(22,163,74,0.65)"  },
-  { Icon: Butterfly, label: "Insects",  href: "/butterfly", grad: "linear-gradient(135deg,#7c3aed,#3b0764)", glow: "rgba(139,92,246,0.65)" },
+const CATEGORIES: { Icon: Icon; label: string; href: string; grad: string; glow: string }[] = [
+  { Icon: Leaf,     label: "Plants",   href: "/scan",     grad: "linear-gradient(135deg,#059669,#052e16)", glow: "rgba(16,185,129,0.65)" },
+  { Icon: Bug,      label: "Insects",  href: "/pest",     grad: "linear-gradient(135deg,#d97706,#78350f)", glow: "rgba(245,158,11,0.65)" },
+  { Icon: Bird,     label: "Birds",    href: "/birds",    grad: "linear-gradient(135deg,#2563eb,#1e3a8a)", glow: "rgba(59,130,246,0.65)" },
+  { Icon: Fish,     label: "Marine",   href: "/marine",   grad: "linear-gradient(135deg,#0891b2,#164e63)", glow: "rgba(6,182,212,0.65)"  },
+  { Icon: Skull,    label: "Toxic",    href: "/toxic",    grad: "linear-gradient(135deg,#dc2626,#7f1d1d)", glow: "rgba(239,68,68,0.65)"  },
+  { Icon: Flower,   label: "Flowers",  href: "/flower",   grad: "linear-gradient(135deg,#db2777,#701a75)", glow: "rgba(236,72,153,0.65)" },
+  { Icon: Tree,     label: "Trees",    href: "/scan",     grad: "linear-gradient(135deg,#16a34a,#052e16)", glow: "rgba(22,163,74,0.65)"  },
+  { Icon: Mushroom, label: "Fungus",   href: "/mushroom", grad: "linear-gradient(135deg,#b45309,#451a03)", glow: "rgba(217,119,6,0.65)"  },
 ];
 
 const FEATURES = [
@@ -161,7 +178,7 @@ function ScanRings() {
 
 // ─── motion presets ───────────────────────────────────────────────────────────
 const stagger = { show: { transition: { staggerChildren: 0.08 } } };
-const fadeUp  = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] } } };
+const fadeUp  = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] as const } } };
 
 // ─── SVG paths: seedling → Monstera leaf morph ───────────────────────────────
 // Swap these with your exact Illustrator paths for pixel-perfect morphing.
@@ -172,6 +189,7 @@ const PATH_LEAF     = "M50,95 C20,80 5,55 8,30 C11,10 30,2 50,5 C70,2 89,10 92,3
 export default function Home() {
   const scans   = useScans();
   const weather = useWeather();
+  const daytime = getDaytime();
   const [tip,  setTip]  = useState(0);
   const [hovCat, setHovCat] = useState<string | null>(null);
 
@@ -337,6 +355,9 @@ export default function Home() {
           {/* base gradient */}
           <div style={{ position:"absolute", inset:0, background:"radial-gradient(ellipse at 50% 0%,#0d2218 0%,#07100c 65%)" }} />
 
+          {/* time-of-day tint (shifts morning → night) */}
+          <div style={{ position:"absolute", inset:0, background: daytime.tint, pointerEvents:"none" }} />
+
           {/* nature photo */}
           <img
             src="https://images.unsplash.com/photo-1448375240586-882707db888b?w=900&q=60"
@@ -361,11 +382,23 @@ export default function Home() {
           {/* scan rings (behind content) */}
           <ScanRings />
 
+          {/* ✨ ambient particles — pollen by day, fireflies at night ✨ */}
+          <AmbientParticles />
+
           {/* bottom vignette */}
           <div style={{ position:"absolute", bottom:0, left:0, right:0, height:80, background:"linear-gradient(to bottom,transparent,#07100c)", pointerEvents:"none" }} />
 
           {/* hero content */}
           <motion.div initial="hidden" animate="show" variants={stagger} style={{ position:"relative", padding:"40px 16px 44px" }}>
+
+            {/* time-aware greeting */}
+            <motion.div variants={fadeUp} style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
+              <span style={{ fontSize:24, lineHeight:1 }}>{daytime.emoji}</span>
+              <div>
+                <p style={{ fontSize:15, fontWeight:800, color:"rgba(255,255,255,0.92)", lineHeight:1.15 }}>{daytime.greeting}</p>
+                <p style={{ fontSize:11, color:"rgba(255,255,255,0.42)", marginTop:1 }}>{daytime.subline}</p>
+              </div>
+            </motion.div>
 
             <motion.div variants={fadeUp} style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12 }}>
               <div style={{ height:1, width:32, background:"linear-gradient(to right,transparent,#10b981)" }} />
@@ -468,8 +501,11 @@ export default function Home() {
           <motion.div
             initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.3 }}
             style={{ marginTop:20, marginBottom:32 }}>
-            <Link href="/tools">
-              <motion.div whileHover={{ scale:1.01 }} style={{
+            <motion.div
+              role="button" tabIndex={0}
+              onClick={() => window.dispatchEvent(new Event("floraiq:command"))}
+              onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); window.dispatchEvent(new Event("floraiq:command")); } }}
+              whileHover={{ scale:1.01 }} style={{
                 display:"flex", alignItems:"center", gap:12,
                 borderRadius:16, padding:"12px 16px", cursor:"pointer",
                 background:"rgba(16,185,129,0.05)",
@@ -483,7 +519,6 @@ export default function Home() {
                   ))}
                 </div>
               </motion.div>
-            </Link>
           </motion.div>
 
           {/* ── CATEGORIES ──────────────────────────────────────────────────── */}
@@ -796,12 +831,22 @@ export default function Home() {
             <img src="https://images.unsplash.com/photo-1586348943529-beaae6c28db9?w=700&q=60" alt=""
               style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover", opacity:0.12 }} />
             <div style={{ position:"relative", padding:20, background:"linear-gradient(135deg,rgba(4,47,46,0.96),rgba(6,78,59,0.92))", border:"1px solid rgba(16,185,129,0.2)" }}>
-              <p style={{ fontWeight:900, fontSize:15, margin:"0 0 4px" }}>Built for the whole world</p>
-              <p style={{ fontSize:13, lineHeight:1.6, color:"rgba(255,255,255,0.48)", margin:"0 0 12px" }}>196 countries. Every climate. Every species.</p>
-              <div style={{ display:"flex", gap:6, flexWrap:"wrap", fontSize:16 }}>
-                {"🇲🇾🇰🇪🇧🇷🇳🇴🇮🇳🇺🇸🇬🇧🇯🇵🇦🇺🇨🇳🇮🇩🇵🇭".match(/\p{Regional_Indicator}{2}/gu)?.map(f => <span key={f}>{f}</span>)}
-                <span style={{ fontSize:10, alignSelf:"center", marginLeft:4, color:"rgba(255,255,255,0.3)" }}>+181 more</span>
+              <p style={{ fontWeight:900, fontSize:18, margin:"0 0 10px", letterSpacing:"-0.01em" }}>Explore Life on Earth</p>
+              <div style={{ display:"flex", gap:20, marginBottom:12, flexWrap:"wrap" }}>
+                {[
+                  { v:"400K+", l:"species" },
+                  { v:"1B+",   l:"biodiversity records" },
+                  { v:"196",   l:"countries" },
+                ].map(s => (
+                  <div key={s.l}>
+                    <p style={{ fontSize:19, fontWeight:900, color:"#34d399", margin:0, lineHeight:1 }}>{s.v}</p>
+                    <p style={{ fontSize:11, color:"rgba(255,255,255,0.45)", margin:"3px 0 0" }}>{s.l}</p>
+                  </div>
+                ))}
               </div>
+              <p style={{ fontSize:12.5, lineHeight:1.7, color:"rgba(255,255,255,0.5)", margin:0 }}>
+                From the Amazon rainforest to the Arctic tundra. From African savannas to Pacific coral reefs. Discover life anywhere on Earth.
+              </p>
             </div>
           </motion.div>
 

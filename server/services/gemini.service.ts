@@ -51,8 +51,13 @@ export class SessionNotFoundError extends Error {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const GEMINI_FLASH_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent`;
-const GEMINI_PRO_URL   = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent`;
+// gemini-2.0-flash and gemini-1.5-pro lost their free tier (HTTP 429, limit 0).
+// 2.5-flash is the current free-tier workhorse; lite is the fallback when flash
+// is rate-limited or overloaded.
+const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"];
+const geminiUrl = (model: string) =>
+  `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+const GEMINI_VISION_MODEL = "gemini-2.5-flash";
 const OPENROUTER_URL   = "https://openrouter.ai/api/v1/chat/completions";
 
 const FLORAIQ_SYSTEM = `You are FloraIQ Assistant — a world-class expert in botany, zoology, ecology, agronomy, foraging, and wilderness survival. You serve users from every country and climate zone on Earth. Provide accurate, concise, practical information. When discussing plants, animals, fungi, or environmental conditions, always cover safety implications. Responses must be direct and data-rich, never generic.`;
@@ -64,7 +69,7 @@ const HISTORY_WINDOW = 20; // messages to fetch from DB per session
 export class GeminiService {
   private readonly apiKey: string;
   private readonly openRouterKey: string;
-  private readonly supabase: ReturnType<typeof createClient> | null;
+  private readonly supabase: ReturnType<typeof createClient<any>> | null;
 
   constructor() {
     this.apiKey       = process.env.GEMINI_API_KEY      || "";
@@ -73,7 +78,8 @@ export class GeminiService {
     const url     = process.env.SUPABASE_URL      || process.env.VITE_SUPABASE_URL      || "";
     const secret  = process.env.SUPABASE_SECRET_KEY || "";
 
-    this.supabase = url && secret ? createClient(url, secret) : null;
+    // <any> schema: no generated DB types in this repo — rows are validated at runtime
+    this.supabase = url && secret ? createClient<any>(url, secret) : null;
   }
 
   // ── Public: session-aware chat ──────────────────────────────────────────────
@@ -125,7 +131,7 @@ export class GeminiService {
         : {}),
     };
 
-    const response = await fetch(`${GEMINI_PRO_URL}?key=${this.apiKey}`, {
+    const response = await fetch(`${geminiUrl(GEMINI_VISION_MODEL)}?key=${this.apiKey}`, {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
       body:    JSON.stringify(body),
@@ -154,7 +160,7 @@ export class GeminiService {
 
     return {
       text:         candidate.content?.parts?.[0]?.text ?? "",
-      model:        data.modelVersion ?? "gemini-1.5-pro",
+      model:        data.modelVersion ?? GEMINI_VISION_MODEL,
       finishReason: candidate.finishReason ?? "STOP",
     };
   }
@@ -192,30 +198,43 @@ export class GeminiService {
       systemInstruction: { parts: [{ text: FLORAIQ_SYSTEM }] },
     };
 
-    const response = await fetch(`${GEMINI_FLASH_URL}?key=${this.apiKey}`, {
-      method:  "POST",
-      headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify(body),
-      signal:  AbortSignal.timeout(15_000),
-    });
+    let lastError: GeminiServiceError | null = null;
 
-    if (!response.ok) {
-      const errBody = await response.json().catch(() => ({})) as any;
-      throw new GeminiServiceError(
-        errBody?.error?.message || `Gemini Flash returned HTTP ${response.status}`,
-        response.status,
-        "gemini-flash",
-      );
+    for (const model of GEMINI_MODELS) {
+      try {
+        const response = await fetch(`${geminiUrl(model)}?key=${this.apiKey}`, {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify(body),
+          signal:  AbortSignal.timeout(20_000),
+        });
+
+        if (!response.ok) {
+          const errBody = await response.json().catch(() => ({})) as any;
+          throw new GeminiServiceError(
+            errBody?.error?.message || `${model} returned HTTP ${response.status}`,
+            response.status,
+            model,
+          );
+        }
+
+        const data = await response.json() as any;
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+        if (typeof text !== "string" || text.trim() === "") {
+          throw new GeminiServiceError(`${model} returned an empty response body`, 502, model);
+        }
+
+        return text;
+      } catch (err) {
+        lastError = err instanceof GeminiServiceError
+          ? err
+          : new GeminiServiceError((err as Error).message, 502, model);
+        console.warn(`[GeminiService] ${model} failed (${lastError.message}) — trying next model`);
+      }
     }
 
-    const data = await response.json() as any;
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-
-    if (typeof text !== "string" || text.trim() === "") {
-      throw new GeminiServiceError("Gemini Flash returned an empty response body", 502, "gemini-flash");
-    }
-
-    return text;
+    throw lastError ?? new GeminiServiceError("All Gemini models failed", 502, "gemini");
   }
 
   private async callOpenRouter(messages: ChatMessage[]): Promise<string> {
