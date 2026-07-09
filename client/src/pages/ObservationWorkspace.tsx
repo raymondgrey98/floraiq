@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { useWorkstation, type PlantIdentificationResult } from "@/context/WorkstationContext";
 import { useSoundEffect } from "@/hooks/useSoundEffect";
 import { requestNotificationPermission, scheduleWaterReminder } from "@/lib/notifications";
+import SimilarSpecies from "@/components/SimilarSpecies";
 
 // ── Risk config ───────────────────────────────────────────────────────────────
 const RISK: Record<string, { label: string; color: string; bg: string; Icon: typeof CheckCircle }> = {
@@ -160,6 +161,9 @@ function AnalysisTab({ result }: { result: PlantIdentificationResult }) {
           <p className="text-sm" style={{ color: "rgba(255,255,255,0.75)" }}>{result.soilAdvice}</p>
         </div>
       )}
+
+      {/* Similar & related species — real photos from iNaturalist */}
+      <SimilarSpecies scientificName={result.scientificName} />
     </div>
   );
 }

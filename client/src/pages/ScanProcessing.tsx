@@ -55,7 +55,9 @@ export default function ScanProcessing() {
         const response = await fetch("/api/identify?lang=en", {
           method: "POST",
           body:   formData,
-          signal: abortRef.current.signal,
+          // Abort on unmount OR after 35s — a hung API triggers a retry (TimeoutError)
+          // instead of freezing the user on "Identifying…" forever.
+          signal: AbortSignal.any([abortRef.current.signal, AbortSignal.timeout(35_000)]),
         });
 
         if (!response.ok) throw new Error(`Server returned ${response.status}`);
