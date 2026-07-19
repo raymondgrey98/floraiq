@@ -2,7 +2,22 @@
 
 Point your camera at anything in nature and get an instant, detailed breakdown. Plants, birds, insects, fungi, marine life, reptiles — FloraIQ identifies them all and goes far beyond a basic name lookup.
 
-**90 tools. All live. Built for 196 countries.**
+**100+ tools. All live. Built for 196 countries.**
+
+---
+
+## ✨ New in v1.1
+
+- **⌘K Spotlight** — instant fuzzy command palette across every tool, plant, and action
+- **Living home** — time-aware greeting + ambient particles that shift morning → night
+- **Similar species** — PictureThis-style related-species photo strip (live iNaturalist data)
+- **Add to My Garden** from any scan — auto care schedule + watering reminders
+- **Native camera** on Android, graceful "no confident match" handling, scan-timeout safety
+- **Hardened** — dependency vulnerabilities **87 → 28 (0 critical)**, least-privilege Android
+  permissions, keystore credentials moved out of source
+
+**Vision & roadmap:** [ENTERPRISE_BLUEPRINT.md](ENTERPRISE_BLUEPRINT.md) ·
+**Upgrade ideas:** [APK_UPGRADE_IDEAS.md](APK_UPGRADE_IDEAS.md)
 
 ---
 
