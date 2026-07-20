@@ -47,10 +47,11 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
 
-    <!-- Storage — modern (Android 13+). IMAGES ONLY: we never pick video or audio
-         files from the gallery (audio ID records via the mic), so those sensitive
-         media permissions are intentionally omitted for easier Play Store review. -->
+    <!-- Storage — modern (Android 13+). FULL SET — personal/sideload build.
+         (For a Play Store submission, trim VIDEO/AUDIO to pass review faster.) -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     <!-- Android 14+: lets users grant access to only selected photos -->
     <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
 
@@ -63,11 +64,12 @@
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
 
-    <!-- Location — FOREGROUND ONLY (GPS-tag scans, weather, nearby species).
-         Background location is intentionally NOT requested: it triggers a heavy
-         Play Store review and we never track location in the background. -->
+    <!-- Location — full set (personal/sideload build). Background location enables
+         future trail-mode/species-alerts; Android still asks the user at runtime.
+         (Trim ACCESS_BACKGROUND_LOCATION before a Play Store submission.) -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
 
     <!-- Microphone (audio ID — BirdNET, insect sounds) -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
