@@ -148,6 +148,27 @@
     min-width: 0;
   }
 
+  /* Skeleton shimmer — a light sweep across placeholder blocks */
+  @keyframes fiq-shimmer {
+    0%   { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+
+  .fiq-shimmer {
+    background-image: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.04) 0%,
+      rgba(255, 255, 255, 0.10) 50%,
+      rgba(255, 255, 255, 0.04) 100%
+    );
+    background-size: 200% 100%;
+    animation: fiq-shimmer 1.6s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .fiq-shimmer { animation: none; }
+  }
+
   /* Premium animations */
   @keyframes glow {
     0%, 100% {

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { X, Share2, Download, MapPin, Leaf, AlertTriangle, ExternalLink, Loader2, BookOpen, Youtube, Globe, Droplets, Sun, Thermometer, FlaskConical, Wind } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Skeleton, SkeletonText, SkeletonGrid, SkeletonList } from "@/components/ui/skeleton";
 
 interface ScanResult {
   id?: number;
@@ -150,9 +151,49 @@ export default function ScanResults() {
   }, []);
 
   if (!result) {
+    // Content-shaped skeleton — mirrors the real layout so there's no jarring pop-in.
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-8 h-8 animate-spin text-emerald-400" />
+      <div className="min-h-screen bg-background text-foreground">
+        <div className="sticky top-0 z-40 glass border-b border-border">
+          <div className="container flex items-center gap-3 h-16">
+            <Skeleton className="w-5 h-5 rounded" />
+            <Skeleton className="h-4 w-44 rounded" />
+          </div>
+        </div>
+        <div className="container py-6 max-w-5xl grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-4">
+            {/* hero identification card */}
+            <div className="glass rounded-2xl border border-emerald-500/20 p-5 flex gap-4">
+              <Skeleton className="w-28 h-28 rounded-xl flex-shrink-0" />
+              <div className="flex-1 space-y-3">
+                <Skeleton className="h-6 w-2/3 rounded" />
+                <Skeleton className="h-3 w-1/2 rounded" />
+                <div className="flex gap-2 pt-1">
+                  <Skeleton className="h-6 w-16 rounded-full" />
+                  <Skeleton className="h-6 w-20 rounded-full" />
+                </div>
+              </div>
+            </div>
+            {/* care grid */}
+            <div className="glass rounded-2xl border border-border/40 p-5">
+              <Skeleton className="h-4 w-32 rounded mb-4" />
+              <SkeletonGrid count={6} cols={3} />
+            </div>
+            {/* tab body */}
+            <div className="glass rounded-2xl border border-border/40 p-6">
+              <SkeletonText lines={4} />
+            </div>
+          </div>
+          <div className="space-y-4">
+            <div className="glass rounded-2xl border border-border/40 p-5 space-y-2">
+              <Skeleton className="h-4 w-20 rounded mb-2" />
+              <Skeleton className="h-9 w-full rounded-xl" />
+              <Skeleton className="h-9 w-full rounded-xl" />
+              <Skeleton className="h-9 w-full rounded-xl" />
+            </div>
+            <SkeletonList count={4} />
+          </div>
+        </div>
       </div>
     );
   }
