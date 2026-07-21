@@ -4,24 +4,27 @@ packages:
   - "."
 
 # These pin transitive dependencies to patched versions for known CVEs (pnpm audit).
+# NOTE: every range is major-bounded (^). An open ">=" range resolves to the
+# newest major and WILL break callers — e.g. ">=0.1.13" pulled path-to-regexp 8.x,
+# whose API is incompatible with Express 4 ("pathRegexp is not a function").
 overrides:
-  # express 4.x pulls path-to-regexp 0.1.12 — ReDoS (GHSA fix >=0.1.13)
-  "express>path-to-regexp": ">=0.1.13"
+  # express 4.x needs the 0.1.x line — 0.1.13 patches the ReDoS
+  "express>path-to-regexp": "^0.1.13"
   # CRLF injection in form-data <4.0.6 (used by axios + direct)
-  form-data: ">=4.0.6"
+  form-data: "^4.0.6"
   # lodash _.template code injection (via recharts / mermaid)
-  lodash: ">=4.18.0"
-  lodash-es: ">=4.18.0"
-  # shell-quote newline escaping (via concurrently) — critical
-  shell-quote: ">=1.8.4"
-  # node-tar race condition (via @tailwindcss/oxide) — scoped to avoid breaking tar 6.x consumers
-  "@tailwindcss/oxide>tar": ">=7.5.4"
-  # picomatch ReDoS — scoped to vite (vite 7 already uses picomatch 4.x API)
-  "vite>picomatch": ">=4.0.4"
+  lodash: "^4.18.0"
+  lodash-es: "^4.18.0"
+  # shell-quote newline escaping (via concurrently)
+  shell-quote: "^1.8.4"
+  # node-tar race condition — scoped so tar 6.x consumers stay untouched
+  "@tailwindcss/oxide>tar": "^7.5.4"
+  # picomatch ReDoS — scoped to vite (vite 7 uses the picomatch 4.x API)
+  "vite>picomatch": "^4.0.4"
   # hono CORS credential reflection (via mcporter)
-  hono: ">=4.12.25"
-  # undici SNI cross-origin routing (via electron tooling, dev-only)
-  undici: ">=7.28.0"
+  hono: "^4.12.25"
+  # undici SNI cross-origin routing (electron tooling) — stay on major 7
+  undici: "^7.28.0"
   # tailwindcss>nanoid pin migrated from package.json (was being ignored)
   "tailwindcss>nanoid": "3.3.7"
 

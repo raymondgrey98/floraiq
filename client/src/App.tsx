@@ -21,6 +21,7 @@ import Profile from "./pages/Profile";
 import AdminDashboard from "./pages/AdminDashboard";
 import Chatbot from "./components/Chatbot";
 import CommandPalette from "./components/CommandPalette";
+import PageTransition from "./components/PageTransition";
 import BottomNav from "./components/BottomNav";
 import ScanResults from "./pages/ScanResults";
 import FarmFinance from "./pages/FarmFinance";
@@ -196,7 +197,9 @@ function App() {
         <ThemeProvider defaultTheme="dark">
           <TooltipProvider>
             <Toaster richColors position="top-center" />
-            <Router />
+            <PageTransition>
+              <Router />
+            </PageTransition>
             <CommandPalette />
             <Chatbot />
             <VoiceCommands />
