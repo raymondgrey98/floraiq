@@ -150,7 +150,15 @@ export default function SpeciesMap() {
     markersRef.current = L.layerGroup().addTo(map);
     mapRef.current = map;
 
-    return () => { map.remove(); mapRef.current = null; };
+    // Leaflet caches the container size at init; if the flex layout wasn't ready
+    // yet, only a couple of tiles load. Recompute after layout + on every resize.
+    const invalidate = () => map.invalidateSize({ animate: false });
+    requestAnimationFrame(invalidate);
+    const t = setTimeout(invalidate, 250);
+    const ro = new ResizeObserver(invalidate);
+    if (mapDivRef.current) ro.observe(mapDivRef.current);
+
+    return () => { clearTimeout(t); ro.disconnect(); map.remove(); mapRef.current = null; };
   }, []);
 
   async function fetchOccurrences(cat: string, q?: string) {
@@ -182,7 +190,8 @@ export default function SpeciesMap() {
       }
 
       const res = await fetch(`https://api.gbif.org/v1/occurrence/search?${params}`, {
-        signal: abortRef.current.signal,
+        // Abort on a new request OR after 12s so a slow GBIF never hangs the map.
+        signal: AbortSignal.any([abortRef.current.signal, AbortSignal.timeout(12_000)]),
       });
       if (!res.ok) throw new Error("GBIF error");
       const data = await res.json();

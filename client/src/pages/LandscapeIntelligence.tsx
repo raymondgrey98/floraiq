@@ -4,7 +4,7 @@ import { Globe, Upload, Search, AlertTriangle, Leaf, Zap, MapPin } from "lucide-
 import { Link } from "wouter";
 
 /**
- * FloraIQ Landscape Intelligence Page
+ * FloraIQ Landscape Scan Page
  * Military-style dashboard with environment analysis
  */
 export default function LandscapeIntelligence() {
@@ -40,7 +40,7 @@ export default function LandscapeIntelligence() {
         <div className="container flex items-center justify-between h-16">
           <div className="flex items-center gap-3">
             <Globe className="w-6 h-6 text-emerald-400" />
-            <h1 className="text-2xl font-bold">Landscape Intelligence</h1>
+            <h1 className="text-2xl font-bold">Landscape Scan</h1>
           </div>
           <Link href="/">
             <Button variant="ghost">Back</Button>

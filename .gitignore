@@ -28,3 +28,8 @@ electron/icon.ico
 electron/icon.png
 *.keystore
 *.jks
+
+# Never commit env backups — they contain live API keys
+.env.backup*
+.env.*.bak
+*.env.backup

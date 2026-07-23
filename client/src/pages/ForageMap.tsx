@@ -79,7 +79,16 @@ export default function ForageMap() {
     }).addTo(map);
     layerRef.current = L.layerGroup().addTo(map);
     mapRef.current = map;
-    return () => { map.remove(); mapRef.current = null; };
+
+    // Recompute size after layout + on resize so the map fills its container
+    // (Leaflet caches a 0×0 size if it inits before the flex layout is ready).
+    const invalidate = () => map.invalidateSize({ animate: false });
+    requestAnimationFrame(invalidate);
+    const t = setTimeout(invalidate, 250);
+    const ro = new ResizeObserver(invalidate);
+    if (mapDivRef.current) ro.observe(mapDivRef.current);
+
+    return () => { clearTimeout(t); ro.disconnect(); map.remove(); mapRef.current = null; };
   }, []);
 
   // Locate user

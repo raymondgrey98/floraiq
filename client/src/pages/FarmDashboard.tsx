@@ -140,7 +140,7 @@ export default function FarmDashboard() {
             </div>
             <div>
               <p className="font-black text-base leading-none">Farm Control</p>
-              <p className="text-[10px] text-white/40">Task management · Field intelligence</p>
+              <p className="text-[10px] text-white/40">Task management · Field insights</p>
             </div>
           </div>
           <div className="flex gap-1">

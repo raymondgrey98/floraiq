@@ -25,53 +25,20 @@ const SUGGESTIONS = [
 ];
 
 const SYSTEM_PROMPT =
-  "You are FloraIQ Intelligence Core — a world-class expert in botany, zoology, ecology, agronomy, " +
+  "You are FloraIQ Assistant — a world-class expert in botany, zoology, ecology, agronomy, " +
   "aquaponics, hydroponics, farm machinery, foraging, and wilderness survival. You serve users in every " +
   "country and climate zone. Answer with accurate, practical, data-rich guidance. Always cover safety " +
   "implications for plants, fungi, and animals. Use short paragraphs and markdown lists where helpful.";
 
-// Client-side Gemini fallback chain — gemini-2.0-flash lost its free tier,
-// 2.5-flash is primary, lite absorbs rate-limit spikes.
-const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"];
-
-async function callGeminiDirect(history: Message[], msg: string): Promise<string> {
-  const key = import.meta.env.VITE_GEMINI_API_KEY;
-  if (!key) throw new Error("No AI key configured");
-
-  const contents = [
-    ...history
-      .filter(m => !m.failed)
-      .slice(-12)
-      .map(m => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.text }] })),
-    { role: "user", parts: [{ text: msg }] },
-  ];
-
-  let lastErr = "";
-  for (const model of GEMINI_MODELS) {
-    try {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
-            contents,
-            generationConfig: { temperature: 0.6, maxOutputTokens: 1200 },
-          }),
-          signal: AbortSignal.timeout(25_000),
-        },
-      );
-      const data = await res.json();
-      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (res.ok && typeof text === "string" && text.trim()) return text;
-      lastErr = data?.error?.message || `${model} HTTP ${res.status}`;
-    } catch (e: any) {
-      lastErr = e?.message || "network error";
-    }
-  }
-  throw new Error(lastErr || "All AI models failed");
-}
+// ─── SECURITY NOTE ───────────────────────────────────────────────────────────
+// This component used to call Gemini directly from the browser using
+// VITE_GEMINI_API_KEY. Vite inlines EVERY `VITE_*` variable into the public JS
+// bundle — which also ships inside the APK — so the key was extractable by
+// anyone and Google auto-revoked it ("API key was reported as leaked").
+//
+// All AI traffic now goes through the server (`/api/chat`), where the key stays
+// private. Never reintroduce a `VITE_*` secret here.
+// ─────────────────────────────────────────────────────────────────────────────
 
 export default function Chatbot() {
   const [open, setOpen]           = useState(false);
@@ -91,7 +58,7 @@ export default function Chatbot() {
     } catch {}
     return [{
       id: "welcome", role: "assistant", timestamp: new Date(),
-      text: "FloraIQ Intelligence Core online. Ask about any plant, animal, disease, farm system, or survival situation — anywhere on Earth.",
+      text: "FloraIQ Assistant online. Ask about any plant, animal, disease, farm system, or survival situation — anywhere on Earth.",
     }];
   });
 
@@ -113,7 +80,6 @@ export default function Chatbot() {
     if (!msg || loading) return;
     lastUserMsg.current = msg;
 
-    const history = messages;
     setMessages(p => [...p, { id: Date.now().toString(), role: "user", text: msg, timestamp: new Date() }]);
     setInput("");
     setLoading(true);
@@ -137,11 +103,9 @@ export default function Chatbot() {
         }
       } catch { /* backend unreachable — try direct */ }
 
-      // 2. Direct Gemini from the browser (works in the APK with no backend)
-      if (!reply) {
-        reply = await callGeminiDirect(history, msg);
-        setMode("direct");
-      }
+      // 2. No client-side AI fallback by design — API keys must never ship in
+      //    the bundle. If the server is unreachable we surface a clear error.
+      if (!reply) throw new Error("AI service unreachable");
 
       setMessages(p => [...p, { id: `${Date.now()}a`, role: "assistant", text: reply, timestamp: new Date() }]);
     } catch (e: any) {
@@ -197,7 +161,7 @@ export default function Chatbot() {
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.93 }}
         onClick={() => setOpen(true)}
-        aria-label="Open FloraIQ Intelligence Core"
+        aria-label="Open FloraIQ Assistant"
         style={{
           position: "fixed", bottom: 90, right: 16, zIndex: 40,
           width: 56, height: 56, borderRadius: "50%", border: "none",
@@ -269,7 +233,7 @@ export default function Chatbot() {
               <Leaf size={16} color="white" />
             </motion.div>
             <div>
-              <p style={{ fontWeight: 700, fontSize: 13, lineHeight: 1.2, color: "white", margin: 0 }}>Intelligence Core</p>
+              <p style={{ fontWeight: 700, fontSize: 13, lineHeight: 1.2, color: "white", margin: 0 }}>Assistant</p>
               <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 2 }}>
                 <badge.Icon size={9} color={badge.color} />
                 <span style={{ fontSize: 10, color: "rgba(255,255,255,0.45)" }}>{badge.label} · Botany · Farming · Survival</span>
@@ -417,7 +381,7 @@ export default function Chatbot() {
                 </motion.button>
               </div>
               <p style={{ fontSize: 9, textAlign: "center", marginTop: 8, color: "rgba(255,255,255,0.2)" }}>
-                FloraIQ Intelligence Core · Gemini 2.5 with automatic failover
+                FloraIQ Assistant · Gemini 2.5 with automatic failover
               </p>
             </div>
           </>

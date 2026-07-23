@@ -150,7 +150,7 @@ export default function ScanProcessing() {
           Identifying…
         </h2>
         <p className="text-sm font-mono" style={{ color: "rgba(52,211,153,0.45)" }}>
-          Querying nature intelligence across 400K+ species
+          Querying nature identification across 400K+ species
         </p>
       </motion.div>
 

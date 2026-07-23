@@ -259,7 +259,7 @@ export default function DroneView() {
             <Leaf size={14} className="text-emerald-400" weight="fill" />
           </div>
           <div>
-            <p className="text-[11px] font-black tracking-wider uppercase text-white leading-none">Plant Intelligence</p>
+            <p className="text-[11px] font-black tracking-wider uppercase text-white leading-none">Plant Insights</p>
             <p className="text-[8px] font-mono text-emerald-500/60">
               {time.toLocaleTimeString([], { hour:"2-digit", minute:"2-digit", second:"2-digit" })} · Live
             </p>

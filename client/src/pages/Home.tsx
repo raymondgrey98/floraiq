@@ -403,7 +403,7 @@ export default function Home() {
             <motion.div variants={fadeUp} style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12 }}>
               <div style={{ height:1, width:32, background:"linear-gradient(to right,transparent,#10b981)" }} />
               <span style={{ fontSize:10, fontWeight:900, letterSpacing:"0.3em", textTransform:"uppercase", color:"#34d399" }}>
-                Nature Intelligence
+                Identify Nature
               </span>
             </motion.div>
 

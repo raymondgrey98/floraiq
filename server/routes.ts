@@ -320,9 +320,11 @@ router.get("/species/forage", async (req: Request, res: Response) => {
   try {
     const { lat, lng } = req.query as { lat?: string; lng?: string };
 
+    // limit=200 regularly takes >10s on GBIF and timed out; 60 is plenty for a
+    // map layer and returns in ~2s.
     let url = "https://api.gbif.org/v1/occurrence/search"
       + "?hasCoordinate=true&hasGeospatialIssue=false&kingdom=Plantae"
-      + "&limit=200&occurrenceStatus=PRESENT";
+      + "&limit=60&occurrenceStatus=PRESENT";
 
     if (lat && lng) {
       const latF = parseFloat(lat);
@@ -330,7 +332,7 @@ router.get("/species/forage", async (req: Request, res: Response) => {
       url += `&decimalLatitude=${latF - 2},${latF + 2}&decimalLongitude=${lngF - 2},${lngF + 2}`;
     }
 
-    const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+    const response = await fetch(url, { signal: AbortSignal.timeout(25_000) });
     if (!response.ok) throw new Error(`GBIF returned HTTP ${response.status}`);
 
     const data = await response.json() as any;
