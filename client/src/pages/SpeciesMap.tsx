@@ -96,6 +96,18 @@ export default function SpeciesMap() {
   const [searchQ, setSearchQ]         = useState("");
   const [totalCount, setTotalCount]   = useState(0);
   const abortRef = useRef<AbortController | null>(null);
+  const heatRef  = useRef<L.TileLayer | null>(null);
+
+  // GBIF density-tile URL for the current category — a hex-binned heatmap of the
+  // full billion-record occurrence dataset (free, no key). Filtered by taxonKey.
+  function heatUrl(cat: string): string {
+    const catInfo = CATEGORIES.find(c => c.id === cat) || CATEGORIES[0];
+    let filter = "";
+    if (cat === "plant") filter = "&taxonKey=6";
+    else if (cat === "mushroom") filter = "&taxonKey=5";
+    else if (cat !== "all") filter = `&taxonKey=${catInfo.taxonKey}`;
+    return `https://api.gbif.org/v2/map/occurrence/density/{z}/{x}/{y}@1x.png?srs=EPSG:3857&style=classic.poly&bin=hex&hexPerTile=25${filter}`;
+  }
 
   // Init map once
   useEffect(() => {
@@ -135,6 +147,14 @@ export default function SpeciesMap() {
 
     satellite.addTo(map); // default: high-end satellite view, like ArcGIS
 
+    // GBIF density heatmap overlay (billion-record occurrence view, on by default)
+    const heat = L.tileLayer(heatUrl(category), {
+      tileSize: 512, zoomOffset: -1, opacity: 0.7,
+      className: "gbif-heat", attribution: "GBIF occurrence density",
+    });
+    heat.addTo(map);
+    heatRef.current = heat;
+
     L.control.layers(
       {
         "Satellite (Esri)": satellite,
@@ -143,7 +163,7 @@ export default function SpeciesMap() {
         "Ocean floor": ocean,
         "NASA Blue Marble": nasa,
       },
-      undefined,
+      { "GBIF density heatmap": heat },
       { position: "topright", collapsed: true },
     ).addTo(map);
 
@@ -209,6 +229,12 @@ export default function SpeciesMap() {
 
   // Load on category change
   useEffect(() => { fetchOccurrences(category); }, [category]);
+
+  // Re-filter the GBIF heatmap when the category changes
+  useEffect(() => {
+    if (heatRef.current) heatRef.current.setUrl(heatUrl(category));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [category]);
 
   // Draw markers
   useEffect(() => {
