@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+import { requestAllPermissions } from "@/lib/permissions";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
@@ -191,6 +193,10 @@ function Router() {
 }
 
 function App() {
+  // Ask for camera / photos / location / notifications / mic once on launch.
+  // No-op on web; on Android this is what makes the installed app actually work.
+  useEffect(() => { void requestAllPermissions(); }, []);
+
   return (
     <ErrorBoundary>
       <WorkstationProvider>

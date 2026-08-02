@@ -14,6 +14,7 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { useWorkstation, type PlantIdentificationResult } from "@/context/WorkstationContext";
 import WaveOrb from "@/components/WaveOrb";
+import { identify as identifyOrganism } from "@/lib/api";
 
 export default function ScanProcessing() {
   const { activeScanBlob, activeScanMode, setActiveScanResult } = useWorkstation();
@@ -36,33 +37,28 @@ export default function ScanProcessing() {
     async function identify(blob: Blob, attempt = 1, maxAttempts = 3): Promise<void> {
       abortRef.current = new AbortController();
 
-      const formData = new FormData();
-      formData.append("image",   blob,           "capture.jpg");
-      formData.append("context", `Scan mode: ${activeScanMode}`);
-
       // Best-effort geolocation to improve accuracy
+      let lat: number | undefined;
+      let lng: number | undefined;
       try {
         const pos = await new Promise<GeolocationPosition>((res, rej) =>
           navigator.geolocation.getCurrentPosition(res, rej, { timeout: 2500 })
         );
-        formData.append("location", JSON.stringify({
-          latitude:  pos.coords.latitude,
-          longitude: pos.coords.longitude,
-        }));
+        lat = pos.coords.latitude;
+        lng = pos.coords.longitude;
       } catch { /* optional — carry on without it */ }
 
       try {
-        const response = await fetch("/api/identify?lang=en", {
-          method: "POST",
-          body:   formData,
-          // Abort on unmount OR after 35s — a hung API triggers a retry (TimeoutError)
-          // instead of freezing the user on "Identifying…" forever.
+        // Uses the backend on web; on the installed app it identifies
+        // on-device (no localhost, no server required).
+        const payload = (await identifyOrganism(blob, {
+          scanMode: activeScanMode,
+          lat,
+          lng,
+          // Abort on unmount OR after 35s so a hung API retries instead of
+          // freezing the user on "Identifying…" forever.
           signal: AbortSignal.any([abortRef.current.signal, AbortSignal.timeout(35_000)]),
-        });
-
-        if (!response.ok) throw new Error(`Server returned ${response.status}`);
-
-        const payload = (await response.json()) as PlantIdentificationResult;
+        })) as PlantIdentificationResult;
 
         // Attach metadata before storing
         const enriched: PlantIdentificationResult = {
