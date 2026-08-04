@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Globe, Filter, Loader2, Search, X, MapPin, ExternalLink } from "lucide-react";
 import "leaflet/dist/leaflet.css";
+import { getSightings } from "@/lib/sightings";
 import L from "leaflet";
 import * as THREE from "three";
 
@@ -155,6 +156,31 @@ export default function SpeciesMap() {
     heat.addTo(map);
     heatRef.current = heat;
 
+    // ── My Sightings — every scan you took, pinned where you took it ──
+    const mine = L.layerGroup();
+    const sightings = getSightings();
+    for (const s of sightings) {
+      const pin = L.marker([s.lat, s.lng], {
+        icon: L.divIcon({
+          className: "",
+          iconSize: [18, 18],
+          iconAnchor: [9, 9],
+          html: `<div style="width:16px;height:16px;border-radius:50%;background:#fbbf24;border:3px solid #fff;box-shadow:0 0 10px rgba(251,191,36,.9)"></div>`,
+        }),
+      });
+      const when = new Date(s.date).toLocaleDateString();
+      pin.bindPopup(
+        `<div style="min-width:150px">
+           ${s.photoUrl ? `<img src="${s.photoUrl}" alt="" style="width:100%;border-radius:8px;margin-bottom:6px" />` : ""}
+           <strong>${s.name}</strong><br/>
+           <em style="opacity:.7">${s.scientific ?? ""}</em><br/>
+           <span style="opacity:.6;font-size:11px">You found this · ${when}</span>
+         </div>`,
+      );
+      mine.addLayer(pin);
+    }
+    if (sightings.length) mine.addTo(map);
+
     L.control.layers(
       {
         "Satellite (Esri)": satellite,
@@ -163,7 +189,10 @@ export default function SpeciesMap() {
         "Ocean floor": ocean,
         "NASA Blue Marble": nasa,
       },
-      { "GBIF density heatmap": heat },
+      {
+        "GBIF density heatmap": heat,
+        [`My sightings (${sightings.length})`]: mine,
+      },
       { position: "topright", collapsed: true },
     ).addTo(map);
 

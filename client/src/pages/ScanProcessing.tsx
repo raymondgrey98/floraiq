@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { useWorkstation, type PlantIdentificationResult } from "@/context/WorkstationContext";
 import WaveOrb from "@/components/WaveOrb";
 import { identify as identifyOrganism } from "@/lib/api";
+import { addSighting } from "@/lib/sightings";
 
 export default function ScanProcessing() {
   const { activeScanBlob, activeScanMode, setActiveScanResult } = useWorkstation();
@@ -88,6 +89,18 @@ export default function ScanProcessing() {
           localStorage.setItem("floraiq_scan_history", JSON.stringify(history.slice(0, 50)));
           // Full result kept in sessionStorage (cleared on tab close, no size spiral)
           sessionStorage.setItem("floraiq_last_scan", JSON.stringify(enriched));
+
+          // Pin this find on the map when we got a location fix
+          if (lat != null && lng != null) {
+            addSighting({
+              name:       enriched.commonNames?.en || enriched.scientificName,
+              scientific: enriched.scientificName,
+              photoUrl:   thumb,
+              lat, lng,
+              scanMode:   activeScanMode,
+              confidence: Math.round((enriched.confidence || 0.5) * 100),
+            });
+          }
         } catch { /* storage full — non-fatal */ }
 
         setLocation("/scan/results/active");
