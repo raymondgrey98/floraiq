@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { requestAllPermissions } from "@/lib/permissions";
+import PermissionGate from "@/components/PermissionGate";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
@@ -193,9 +194,12 @@ function Router() {
 }
 
 function App() {
-  // Ask for camera / photos / location / notifications / mic once on launch.
-  // No-op on web; on Android this is what makes the installed app actually work.
-  useEffect(() => { void requestAllPermissions(); }, []);
+  // Best-effort silent request shortly after launch (gives the Capacitor bridge
+  // time to attach). PermissionGate below is the reliable, user-tapped path.
+  useEffect(() => {
+    const t = setTimeout(() => { void requestAllPermissions(); }, 1500);
+    return () => clearTimeout(t);
+  }, []);
 
   return (
     <ErrorBoundary>
@@ -206,6 +210,7 @@ function App() {
             <PageTransition>
               <Router />
             </PageTransition>
+            <PermissionGate />
             <CommandPalette />
             <Chatbot />
             <VoiceCommands />
