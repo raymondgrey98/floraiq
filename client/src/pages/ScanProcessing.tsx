@@ -16,6 +16,7 @@ import { useWorkstation, type PlantIdentificationResult } from "@/context/Workst
 import WaveOrb from "@/components/WaveOrb";
 import { identify as identifyOrganism } from "@/lib/api";
 import { addSighting } from "@/lib/sightings";
+import { savePhoto } from "@/lib/photos";
 
 export default function ScanProcessing() {
   const { activeScanBlob, activeScanMode, setActiveScanResult } = useWorkstation();
@@ -71,6 +72,15 @@ export default function ScanProcessing() {
         };
 
         setActiveScanResult(enriched);
+
+        // Keep the full-size photo on the phone in Documents/FloraIQ so you can
+        // browse, copy off, or review your scans later. Never blocks the flow.
+        void savePhoto(enriched.photoUrl ?? "", {
+          species:    enriched.scientificName,
+          common:     enriched.commonNames?.en,
+          confidence: Math.round((enriched.confidence || 0.5) * 100),
+          lat, lng,
+        });
 
         // Persist to localStorage history (non-fatal)
         try {
