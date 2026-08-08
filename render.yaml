@@ -1,0 +1,27 @@
+# One-click deploy to Render — no engineer, no terminal required.
+#
+# 1. Go to https://render.com and sign in with GitHub
+# 2. New + → Blueprint → pick the floraiq repo → Apply
+# 3. When asked, paste your API keys (they stay secret on the server)
+#
+# Render reads this file and builds everything itself.
+services:
+  - type: web
+    name: floraiq
+    runtime: node
+    plan: free              # upgrade to "starter" when you have paying users
+    region: singapore       # closest region to South-East Asia
+    buildCommand: npm install -g pnpm && pnpm install && pnpm build
+    startCommand: pnpm start
+    healthCheckPath: /api/health
+    autoDeploy: true        # every git push redeploys automatically
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "20"
+      # Paste these in the Render dashboard when prompted — never commit them.
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false

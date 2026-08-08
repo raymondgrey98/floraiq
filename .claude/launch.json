@@ -4,8 +4,23 @@
     {
       "name": "floraiq-dev",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["dev"],
+      "runtimeArgs": [
+        "dev"
+      ],
       "port": 3000
+    },
+    {
+      "name": "floraiq-apk-bundle",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "vite",
+        "preview",
+        "--port",
+        "4173",
+        "--outDir",
+        "dist/public"
+      ],
+      "port": 4173
     }
   ]
 }

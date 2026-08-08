@@ -17,6 +17,7 @@ import WaveOrb from "@/components/WaveOrb";
 import { identify as identifyOrganism } from "@/lib/api";
 import { addSighting } from "@/lib/sightings";
 import { savePhoto } from "@/lib/photos";
+import { recordScan } from "@/lib/entitlements";
 
 export default function ScanProcessing() {
   const { activeScanBlob, activeScanMode, setActiveScanResult } = useWorkstation();
@@ -72,6 +73,7 @@ export default function ScanProcessing() {
         };
 
         setActiveScanResult(enriched);
+        recordScan();
 
         // Keep the full-size photo on the phone in Documents/FloraIQ so you can
         // browse, copy off, or review your scans later. Never blocks the flow.
