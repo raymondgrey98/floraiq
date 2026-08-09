@@ -207,6 +207,9 @@ const plugins = [react(), tailwindcss(), jsxLocPlugin(), vitePluginManusRuntime(
 
 export default defineConfig({
   plugins,
+  // Served from the domain root by default (local dev + the Android app).
+  // GitHub Pages serves from /floraiq/, so CI sets VITE_BASE=/floraiq/.
+  base: process.env.VITE_BASE || "/",
   resolve: {
     // Force a single React instance — prevents cmdk/Radix "invalid hook call".
     dedupe: ["react", "react-dom"],
