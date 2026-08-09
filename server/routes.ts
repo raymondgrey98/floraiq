@@ -13,6 +13,27 @@ import {
   DiseaseServiceError,
   InvalidPayloadError,
 } from "./services/disease.service";
+import {
+  canScan,
+  recordScan,
+  entitlementFor,
+  activateLicence,
+  createLicence,
+  stats,
+} from "./services/licence.service";
+import { createHash, timingSafeEqual } from "node:crypto";
+
+/**
+ * Identify the caller's device for usage counting.
+ * The app sends a stable random id in X-Device-Id; if it's missing we fall back
+ * to a hash of IP + user-agent so the limit still means something.
+ */
+function deviceIdOf(req: Request): string {
+  const header = req.header("x-device-id");
+  if (header && header.length >= 8) return header.slice(0, 64);
+  const ip = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.ip || "unknown";
+  return createHash("sha256").update(`${ip}|${req.header("user-agent") ?? ""}`).digest("hex").slice(0, 32);
+}
 
 // ── Infrastructure ────────────────────────────────────────────────────────────
 
@@ -78,6 +99,19 @@ router.post("/identify", upload.single("image"), async (req: Request, res: Respo
       return;
     }
 
+    // Freemium enforcement — server-side so it can't be bypassed by the client.
+    const deviceId = deviceIdOf(req);
+    if (!canScan(deviceId)) {
+      const e = entitlementFor(deviceId);
+      res.status(402).json({
+        error: "Daily free scan limit reached",
+        upgrade: true,
+        scansToday: e.scansToday,
+        limit: e.limit,
+      });
+      return;
+    }
+
     const language = (req.query.lang as string) || "en";
     const context  = req.body.context || "";
 
@@ -140,11 +174,66 @@ router.post("/identify", upload.single("image"), async (req: Request, res: Respo
       });
     }
 
+    recordScan(deviceId); // count it only when identification actually succeeded
     res.json(result);
   } catch (err: any) {
     console.error("[POST /identify]", err.message);
     res.status(500).json({ error: "Identification failed", details: err.message });
   }
+});
+
+// ── Licensing & entitlements ─────────────────────────────────────────────────
+
+/** What plan is this device on, and how many scans are left today? */
+router.get("/entitlements", (req: Request, res: Response) => {
+  res.json(entitlementFor(deviceIdOf(req)));
+});
+
+/** Activate a purchased licence key on this device. */
+router.post("/licence/activate", (req: Request, res: Response) => {
+  const key = String(req.body?.key ?? "");
+  if (!key) {
+    res.status(400).json({ error: "Missing licence key" });
+    return;
+  }
+  const result = activateLicence(key, deviceIdOf(req));
+  if (!result.ok) {
+    res.status(400).json(result);
+    return;
+  }
+  res.json(result);
+});
+
+/**
+ * Owner-only: issue a licence key after a customer pays, and see usage.
+ * Protected by the ADMIN_TOKEN env var — set it to a long random string.
+ */
+function requireAdmin(req: Request, res: Response): boolean {
+  const token = process.env.ADMIN_TOKEN;
+  if (!token) {
+    res.status(503).json({ error: "ADMIN_TOKEN is not configured on the server" });
+    return false;
+  }
+  const given = req.header("x-admin-token") ?? "";
+  // Constant-time compare so the token can't be guessed by timing
+  const a = Buffer.from(given);
+  const b = Buffer.from(token);
+  if (a.length !== b.length || !timingSafeEqual(a, b)) {
+    res.status(401).json({ error: "Unauthorized" });
+    return false;
+  }
+  return true;
+}
+
+router.post("/admin/licence", (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+  const { owner, plan, expiresAt, maxDevices } = req.body ?? {};
+  res.json(createLicence({ owner, plan, expiresAt, maxDevices }));
+});
+
+router.get("/admin/stats", (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+  res.json(stats());
 });
 
 // ── POST /api/identify/inat ───────────────────────────────────────────────────

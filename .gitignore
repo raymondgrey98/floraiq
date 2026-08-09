@@ -33,3 +33,7 @@ electron/icon.png
 .env.backup*
 .env.*.bak
 *.env.backup
+
+# Licence store (customer data)
+.data/
+.data-test/

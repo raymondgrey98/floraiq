@@ -23,6 +23,55 @@ export function apiUrl(path: string): string {
   return REMOTE_API ? `${REMOTE_API}${p}` : p;
 }
 
+/**
+ * A stable, anonymous id for this install — lets the server count scans per
+ * device for the free plan. Not tied to any personal information.
+ */
+export function deviceId(): string {
+  const KEY = "floraiq_device_id";
+  try {
+    let id = localStorage.getItem(KEY);
+    if (!id) {
+      id = (crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`).replace(/-/g, "");
+      localStorage.setItem(KEY, id);
+    }
+    return id;
+  } catch {
+    return "anonymous-device";
+  }
+}
+
+/** Headers every backend call should carry. */
+function authHeaders(): Record<string, string> {
+  return { "X-Device-Id": deviceId() };
+}
+
+/** Current plan + how many scans are left today (server is the source of truth). */
+export async function getEntitlements(): Promise<{ plan: string; scansToday: number; remaining: number; limit: number } | null> {
+  if (STANDALONE) return null; // no backend to ask
+  try {
+    const res = await fetch(apiUrl("/api/entitlements"), { headers: authHeaders(), signal: AbortSignal.timeout(8000) });
+    return res.ok ? await res.json() : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Redeem a purchased licence key on this device. */
+export async function activateLicence(key: string): Promise<{ ok: boolean; error?: string; plan?: string }> {
+  try {
+    const res = await fetch(apiUrl("/api/licence/activate"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ key }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    return await res.json();
+  } catch (e: any) {
+    return { ok: false, error: e?.message ?? "Network error" };
+  }
+}
+
 const GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
 const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"];
 
@@ -124,8 +173,15 @@ export async function identify(
   const res = await fetch(apiUrl("/api/identify?lang=en"), {
     method: "POST",
     body: fd,
+    headers: authHeaders(),
     signal: opts.signal ?? AbortSignal.timeout(35_000),
   });
+  if (res.status === 402) {
+    const info = await res.json().catch(() => ({}));
+    const err: any = new Error(info.error || "Daily free scan limit reached");
+    err.upgrade = true;
+    throw err;
+  }
   if (!res.ok) throw new Error(`Server returned ${res.status}`);
   return res.json();
 }
