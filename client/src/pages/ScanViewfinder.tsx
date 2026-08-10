@@ -228,7 +228,11 @@ export default function ScanViewfinder() {
       )}
 
       {/* ── CAPTURE BUTTON ──────────────────────────────────────────────────── */}
-      <div className="relative z-10 flex flex-col items-center pb-safe pb-12 mt-auto px-6">
+      {/* Bottom controls. Extra bottom room so the shutter clears the phone's
+          gesture bar and is comfortable to reach one-handed. */}
+      <div
+        className="relative z-10 flex flex-col items-center mt-auto px-6"
+        style={{ paddingBottom: "max(calc(env(safe-area-inset-bottom) + 28px), 40px)" }}>
         <p className="text-white/40 text-xs mb-6 text-center">
           {IS_NATIVE
             ? "Tap the shutter to open your camera."

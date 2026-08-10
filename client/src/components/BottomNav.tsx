@@ -16,9 +16,17 @@ const NAV: NavItem[] = [
   { href: "/map",    icon: Globe2,   label: "World"            },
 ];
 
+/**
+ * Routes that own the whole screen. The nav is hidden here because it sits on
+ * top of the camera controls and swallows taps meant for the shutter.
+ */
+const FULLSCREEN_ROUTES = ["/scan", "/scan/processing", "/scan/results"];
+
 export default function BottomNav() {
   const [location] = useLocation();
   const isActive = (href: string) => (href === "/" ? location === "/" : location.startsWith(href));
+
+  if (FULLSCREEN_ROUTES.some(r => location === r || location.startsWith(`${r}/`))) return null;
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-50 sm:hidden pointer-events-none">

@@ -495,7 +495,9 @@ export default function Home() {
         </div>
 
         {/* ── BODY CONTENT ──────────────────────────────────────────────────── */}
-        <div style={{ padding:"0 16px" }}>
+        {/* Bottom padding clears the fixed nav + floating buttons so content
+            never slides underneath them. */}
+        <div style={{ padding:"0 16px", paddingBottom:"calc(env(safe-area-inset-bottom) + 132px)" }}>
 
           {/* ── SEARCH ──────────────────────────────────────────────────────── */}
           <motion.div
